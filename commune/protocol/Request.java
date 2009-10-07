@@ -5,8 +5,12 @@ import java.util.List;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.Scanner;
+import java.util.regex.Pattern;
+import java.util.regex.MatchResult;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
 
@@ -18,6 +22,9 @@ public class Request {
     private String resource;
     private String protocol;
     private Map<String, List<String>> headers;
+    
+    private static final Pattern REQUEST_LINE_PATTERN =
+        Pattern.compile("([A-Z]+) ([^ ]+) (\\w+/\\d+.\\d+)");
     
     public Request(String method) {
         this(method, "-");
@@ -138,10 +145,78 @@ public class Request {
         return buffer.toString();
     }
     
-    public static void main(String... args) {
+    /**
+     * Parses a request.
+     */
+    public static Request parse(byte[] request)
+        throws InvalidRequestException, UnsupportedEncodingException
+    {
+        return parse(request, 0, request.length);
+    }
+    
+    /**
+     * Parses a request.
+     */
+    public static Request parse(byte[] request, int offset, int length)
+        throws InvalidRequestException, UnsupportedEncodingException
+    {
+        return parse(new String(request, offset, length, "UTF-8"));
+    }
+    
+    /**
+     * Parses a request string.
+     */
+    public static Request parse(String requestString)
+        throws InvalidRequestException
+    {
+        Scanner scanner = new Scanner(requestString);
+        
+        if (scanner.findInLine(REQUEST_LINE_PATTERN) == null) {
+            throw new InvalidRequestException("Invalid request line: " +
+                scanner.nextLine());
+        }
+        
+        MatchResult match = scanner.match();
+        Request request;
+        try {
+            URI uri = new URI(match.group(2));
+            
+            if (uri.getScheme() != null || uri.getAuthority() != null) {
+                throw new InvalidRequestException("Must only give a path " +
+                    "in the request URI.");
+            }
+            
+            request = new Request(match.group(1), uri.getPath(),
+                match.group(3));
+        } catch (URISyntaxException e) {
+            throw new InvalidRequestException("Invalid request URI: " +
+                match.group(2), e);
+        }
+        
+        scanner.nextLine();
+        
+        while (scanner.hasNextLine()) {
+            String line = scanner.nextLine();
+            if (line.length() == 0) {
+                break;
+            }
+            
+            String[] parts = line.split(": ", 2);
+            if (parts.length != 2) {
+                throw new InvalidRequestException("Invalid header line: " +
+                    line);
+            }
+            
+            request.addHeader(parts[0], parts[1]);
+        }
+        
+        return request;
+    }
+    
+    public static void main(String... args) throws Exception {
         Request r = new Request("GET", "/some/file");
         r.addHeader("User-Agent", "Commune Reference/0.1");
         r.addHeader("Connection", "close");
-        System.out.print(r);
+        System.out.println(r.equals(parse(r.toString())));
     }
 }
