@@ -1,5 +1,6 @@
 package commune.protocol;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.LinkedList;
 import java.util.Map;
@@ -66,6 +67,29 @@ public class Request {
         }
         
         container.add(value);
+    }
+    
+    /**
+     * Gets all headers and their values.
+     */
+    public Map<String, List<String>> getHeaders() {
+        return Collections.unmodifiableMap(headers);
+    }
+    
+    /**
+     * Gets all values for the given header name.
+     */
+    public List<String> getHeader(String name) {
+        return headers.get(name);
+    }
+    
+    /**
+     * Returns the first value for the header with the given name.
+     * @return first value for the header with the given name
+     */
+    public String getFirstHeader(String name) {
+        List<String> values = getHeader(name);
+        return (values != null) ? values.get(0) : null;
     }
     
     /**
