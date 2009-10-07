@@ -92,6 +92,19 @@ public class Request {
         return (values != null) ? values.get(0) : null;
     }
     
+    public boolean equals(Object o) {
+        return (o instanceof Request)
+            ? equals((Request) o)
+            : false;
+    }
+    
+    public boolean equals(Request o) {
+        return (getMethod().equals(o.getMethod()) &&
+            getResource().equals(o.getResource()) &&
+            getProtocol().equals(o.getProtocol()) &&
+            headers.equals(o.getHeaders()));
+    }
+    
     /**
      * Serializes this request as a string.
      */
