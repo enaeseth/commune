@@ -7,6 +7,8 @@ import java.util.Map;
 import java.util.HashMap;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.net.URI;
+import java.net.URISyntaxException;
 
 /**
  * Represents a request made of a Commune servent.
@@ -111,8 +113,17 @@ public class Request {
     public String toString() {
         StringWriter buffer = new StringWriter();
         PrintWriter writer = new PrintWriter(buffer, true);
+        String encodedResource;
         
-        writer.printf("%s %s %s\r\n", getMethod(), getResource(),
+        try {
+            URI resource = new URI(null, null, null, 0, getResource(), null,
+                null);
+            encodedResource = resource.getRawPath();
+        } catch (URISyntaxException e) {
+            throw new RuntimeException(e);
+        }
+        
+        writer.printf("%s %s %s\r\n", getMethod(), encodedResource,
             getProtocol());
         
         for (Map.Entry<String, List<String>> pair : headers.entrySet()) {
