@@ -12,6 +12,7 @@ import java.io.PrintWriter;
  * Base type for Commune messages that contain name-value header lines.
  */
 public abstract class Message {
+    public static final String NATIVE_PROTOCOL = "Commune/0.1";
     private Map<String, List<String>> headers;
     
     /**

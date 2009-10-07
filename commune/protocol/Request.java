@@ -25,7 +25,7 @@ public class Request extends Message {
     }
     
     public Request(String method, String resource) {
-        this(method, resource, "Commune/0.1");
+        this(method, resource, Message.NATIVE_PROTOCOL);
     }
     
     public Request(String method, String resource, String protocol) {
