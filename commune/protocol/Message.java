@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.Scanner;
 import java.io.PrintWriter;
 
 /**
@@ -76,5 +77,24 @@ public abstract class Message {
         }
         
         writer.print("\r\n");
+    }
+    
+    protected static void readHeaders(Scanner scanner, Message message)
+        throws InvalidMessageException
+    {
+        while (scanner.hasNextLine()) {
+            String line = scanner.nextLine();
+            if (line.length() == 0) {
+                break;
+            }
+            
+            String[] parts = line.split(": ", 2);
+            if (parts.length != 2) {
+                throw new InvalidMessageException("Invalid header line: " +
+                    line);
+            }
+            
+            message.addHeader(parts[0], parts[1]);
+        }
     }
 }

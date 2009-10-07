@@ -143,20 +143,10 @@ public class Request extends Message {
         }
         
         scanner.nextLine();
-        
-        while (scanner.hasNextLine()) {
-            String line = scanner.nextLine();
-            if (line.length() == 0) {
-                break;
-            }
-            
-            String[] parts = line.split(": ", 2);
-            if (parts.length != 2) {
-                throw new InvalidRequestException("Invalid header line: " +
-                    line);
-            }
-            
-            request.addHeader(parts[0], parts[1]);
+        try {
+            readHeaders(scanner, request);
+        } catch (InvalidMessageException e) {
+            throw new InvalidRequestException(e.getMessage(), e.getCause());
         }
         
         return request;
