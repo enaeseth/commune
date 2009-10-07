@@ -6,6 +6,8 @@ JFLAGS = -g -deprecation
 	$(JC) $(JFLAGS) $*.java
 
 CLASSES = \
+	commune/protocol/Message.java \
+	commune/protocol/InvalidRequestException.java \
 	commune/protocol/Request.java
 
 default: classes

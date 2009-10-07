@@ -1,10 +1,5 @@
 package commune.protocol;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.LinkedList;
-import java.util.Map;
-import java.util.HashMap;
 import java.util.Scanner;
 import java.util.regex.Pattern;
 import java.util.regex.MatchResult;
@@ -17,11 +12,10 @@ import java.net.URISyntaxException;
 /**
  * Represents a request made of a Commune servent.
  */
-public class Request {
+public class Request extends Message {
     private String method;
     private String resource;
     private String protocol;
-    private Map<String, List<String>> headers;
     
     private static final Pattern REQUEST_LINE_PATTERN =
         Pattern.compile("([A-Z]+) ([^ ]+) (\\w+/\\d+.\\d+)");
@@ -35,10 +29,10 @@ public class Request {
     }
     
     public Request(String method, String resource, String protocol) {
+        super();
         this.method = method;
         this.resource = resource;
         this.protocol = protocol;
-        headers = new HashMap<String, List<String>>();
     }
     
     /**
@@ -65,42 +59,6 @@ public class Request {
         return protocol;
     }
     
-    /**
-     * Adds a header to this request.
-     */
-    public void addHeader(String name, String value) {
-        List<String> container = headers.get(name);
-        if (container == null) {
-            container = new LinkedList<String>();
-            headers.put(name, container);
-        }
-        
-        container.add(value);
-    }
-    
-    /**
-     * Gets all headers and their values.
-     */
-    public Map<String, List<String>> getHeaders() {
-        return Collections.unmodifiableMap(headers);
-    }
-    
-    /**
-     * Gets all values for the given header name.
-     */
-    public List<String> getHeader(String name) {
-        return headers.get(name);
-    }
-    
-    /**
-     * Returns the first value for the header with the given name.
-     * @return first value for the header with the given name
-     */
-    public String getFirstHeader(String name) {
-        List<String> values = getHeader(name);
-        return (values != null) ? values.get(0) : null;
-    }
-    
     public boolean equals(Object o) {
         return (o instanceof Request)
             ? equals((Request) o)
@@ -111,7 +69,7 @@ public class Request {
         return (getMethod().equals(o.getMethod()) &&
             getResource().equals(o.getResource()) &&
             getProtocol().equals(o.getProtocol()) &&
-            headers.equals(o.getHeaders()));
+            super.equals(o));
     }
     
     /**
@@ -132,16 +90,7 @@ public class Request {
         
         writer.printf("%s %s %s\r\n", getMethod(), encodedResource,
             getProtocol());
-        
-        for (Map.Entry<String, List<String>> pair : headers.entrySet()) {
-            String name = pair.getKey();
-            
-            for (String value : pair.getValue()) {
-                writer.printf("%s: %s\r\n", name, value);
-            }
-        }
-        
-        writer.print("\r\n");
+        writeHeaders(writer);
         return buffer.toString();
     }
     
