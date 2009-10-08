@@ -1,4 +1,4 @@
-package commune.peer.server;
+package commune.peer.source;
 
 /**
  * An interface for objects that can provide a resource to serve given a path.
