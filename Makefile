@@ -11,7 +11,12 @@ CLASSES = \
 	commune/protocol/InvalidRequestException.java \
 	commune/protocol/Request.java \
 	commune/protocol/InvalidResponseException.java \
-	commune/protocol/Response.java
+	commune/protocol/Response.java \
+	commune/peer/server/AvailableResource.java \
+	commune/peer/server/AvailableFile.java \
+	commune/peer/server/Source.java \
+	commune/peer/server/DirectorySource.java \
+	commune/peer/server/ResourceServer.java
 
 default: classes
 
