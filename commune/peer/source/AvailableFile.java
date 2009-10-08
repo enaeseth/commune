@@ -1,8 +1,8 @@
 package commune.peer.source;
 
 import java.io.File;
-import java.io.OutputStream;
-import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.FileNameMap;
 import java.net.URLConnection;
@@ -62,7 +62,7 @@ public class AvailableFile implements AvailableResource {
     /**
      * Opens an output stream through which the file can be read.
      */
-    public OutputStream openStream() throws IOException {
-        return new FileOutputStream(file);
+    public InputStream openStream() throws IOException {
+        return new FileInputStream(file);
     }
 }
