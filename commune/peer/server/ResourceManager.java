@@ -7,12 +7,10 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
- * Serves requested resources asynchronously over pipe channels.
- *
- * A ResourceServer can serve files/resources from any number of
- * {@link Source}s.
+ * Manages a collection of resource sources, allowing a resource to be
+ * requested from any source by its path.
  */
-public class ResourceServer {
+public class ResourceManager {
     private List<Source> sources;
     private ReadWriteLock sourceLock;
     private Lock sourceReadLock;
@@ -21,7 +19,7 @@ public class ResourceServer {
     /**
      * Creates a new resource server.
      */
-    public ResourceServer() {
+    public ResourceManager() {
         sources = new LinkedList<Source>();
         sourceLock = new ReentrantReadWriteLock();
         sourceReadLock = sourceLock.readLock();

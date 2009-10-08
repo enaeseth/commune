@@ -16,7 +16,7 @@ CLASSES = \
 	commune/peer/server/AvailableFile.java \
 	commune/peer/server/Source.java \
 	commune/peer/server/DirectorySource.java \
-	commune/peer/server/ResourceServer.java
+	commune/peer/server/ResourceManager.java
 
 default: classes
 
