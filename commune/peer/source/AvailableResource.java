@@ -1,6 +1,6 @@
 package commune.peer.source;
 
-import java.io.InputStream;
+import java.nio.ByteBuffer;
 import java.io.IOException;
 
 /**
@@ -10,5 +10,5 @@ import java.io.IOException;
 public interface AvailableResource {
     public long getSize();
     public String getContentType();
-    public InputStream openStream() throws IOException;
+    public ByteBuffer read() throws IOException;
 }

@@ -1,8 +1,10 @@
 package commune.peer.source;
 
 import java.io.File;
-import java.io.InputStream;
 import java.io.FileInputStream;
+import java.nio.ByteBuffer;
+import java.nio.MappedByteBuffer;
+import java.nio.channels.FileChannel;
 import java.io.IOException;
 import java.net.FileNameMap;
 import java.net.URLConnection;
@@ -62,7 +64,10 @@ public class AvailableFile implements AvailableResource {
     /**
      * Opens an output stream through which the file can be read.
      */
-    public InputStream openStream() throws IOException {
-        return new FileInputStream(file);
+    public MappedByteBuffer read() throws IOException {
+        FileInputStream stream = new FileInputStream(file);
+        FileChannel channel = stream.getChannel();
+        
+        return channel.map(FileChannel.MapMode.READ_ONLY, 0L, getSize());
     }
 }
