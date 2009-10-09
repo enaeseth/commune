@@ -18,7 +18,8 @@ CLASSES = \
 	commune/peer/source/DirectorySource.java \
 	commune/peer/source/ResourceManager.java \
 	commune/peer/ChannelListener.java \
-	commune/peer/Reactor.java
+	commune/peer/Reactor.java \
+	commune/peer/server/Server.java
 
 default: classes
 
