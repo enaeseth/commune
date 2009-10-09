@@ -70,9 +70,8 @@ public class Reactor {
     }
     
     public void run() throws IOException {
-        while (true) {
-            selector.select();
-            
+        while (!Thread.interrupted()) {
+            selector.select(250);
             Iterator<SelectionKey> keys = selector.selectedKeys().iterator();
             
             while (keys.hasNext()) {
@@ -88,6 +87,8 @@ public class Reactor {
                 }
             }
         }
+        
+        executor.shutdownNow();
     }
     
     private void handleKey(SelectionKey key) throws IOException {
@@ -112,7 +113,8 @@ public class Reactor {
         {
             this.listener = listener;
             this.timeoutAction = timeoutAction;
-            timeoutTask = executor.schedule(timeoutAction, timeout, unit);
+            if (timeoutAction != null)
+                timeoutTask = executor.schedule(timeoutAction, timeout, unit);
         }
         
         /**

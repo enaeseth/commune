@@ -6,6 +6,7 @@ import java.io.File;
  * A source for servable resources that looks in a directory.
  */
 public class DirectorySource implements Source {
+    private String prefix;
     private File directory;
     
     /**
@@ -14,7 +15,7 @@ public class DirectorySource implements Source {
      * @throws IllegalArgumentException if the given "directory" does not exist
      *         or is not really a directory at all
      */
-    public DirectorySource(File directory) {
+    public DirectorySource(String prefix, File directory) {
         if (!directory.exists()) {
             throw new IllegalArgumentException("The given path (" + directory +
                 ") does not exist.");
@@ -23,10 +24,15 @@ public class DirectorySource implements Source {
                 ") does not refer to a directory.");
         }
         
-        directory = directory.getAbsoluteFile();
+        this.prefix = prefix;
+        this.directory = directory.getAbsoluteFile();
     }
     
     public AvailableResource getResource(String path) {
+        if (!path.startsWith(prefix))
+            return null;
+        path = path.substring(prefix.length());
+        
         File requested = new File(directory, path);
         
         if (!requested.exists() || !requested.isFile() || !requested.canRead())

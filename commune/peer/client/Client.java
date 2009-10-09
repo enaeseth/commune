@@ -6,7 +6,7 @@ import commune.protocol.*;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.FileOutputStream;
+import java.io.RandomAccessFile;
 import java.net.*;
 import java.nio.*;
 import java.nio.channels.*;
@@ -28,11 +28,17 @@ public class Client {
         SocketChannel channel = SocketChannel.open();
         FutureTask<File> task = new FutureTask<File>();
         
-        channel.configureBlocking(false);
-        channel.connect(new InetSocketAddress(address, port));
+        if (channel.connect(new InetSocketAddress(address, port))) {
+            // channel connected immediately
+            channel.configureBlocking(false);
+            reactor.register(channel, SelectionKey.OP_WRITE,
+                new ServerListener(task, path), 10);
+        } else {
+            channel.configureBlocking(false);
+            reactor.register(channel, SelectionKey.OP_CONNECT,
+                new ServerListener(task, path), 15);
+        }
         
-        reactor.register(channel, SelectionKey.OP_CONNECT,
-            new ServerListener(task, path), 15);
         return task;
     }
     
@@ -41,7 +47,11 @@ public class Client {
         private String path;
         private boolean requestSent = false;
         private boolean responseRead = false;
+        private Response response = null;
+        private boolean gotError = false;
+        private IOException serverError = null;
         private ByteBuffer buffer = null;
+        private ByteBuffer staleBuffer = null;
         private int fileLength = 0;
         private int bytesRead = 0;
         private File outputFile = null;
@@ -71,6 +81,8 @@ public class Client {
                 } else if ((operations & SelectionKey.OP_READ) > 0) {
                     if (!responseRead) {
                         readResponse(socket);
+                    } else if (gotError) {
+                        readError(socket);
                     } else {
                         readResource(socket);
                     }
@@ -112,7 +124,7 @@ public class Client {
             if (responseLength < 0) {
                 // we haven't yet gotten the whole response
                 
-                if (buffer.limit() >= buffer.capacity()) {
+                if (buffer.position() >= buffer.limit()) {
                     // and we never will, because our response buffer is full.
                     // close the connection; a header of more than 8KiB is
                     // probably some kind of attack anyway.
@@ -126,11 +138,12 @@ public class Client {
             }
             
             byte[] data = new byte[responseLength];
-            buffer.rewind();
+            buffer.flip();
             buffer.get(data);
             
             try {
-                Response response = Response.parse(data);
+                response = Response.parse(data);
+                responseRead = true;
                 
                 String lengthString =
                     response.getFirstHeader("Content-Length");
@@ -138,6 +151,9 @@ public class Client {
                     throw new IOException("No Content-Length received.");
                 
                 fileLength = Integer.parseInt(lengthString);
+                
+                gotError = (response.getStatusCode() >= 400);
+                staleBuffer = buffer;
                 buffer = null;
             } catch (InvalidResponseException e) {
                 // The server's response was invalid.
@@ -148,17 +164,57 @@ public class Client {
         }
         
         private void readResource(SocketChannel socket) throws IOException {
+            bytesRead = 0;
+            
             if (buffer == null) {
                 outputFile = getOutputFile();
-                FileOutputStream stream = new FileOutputStream(outputFile);
-                fileChannel = stream.getChannel();
+                fileChannel = new RandomAccessFile(outputFile, "rw").
+                    getChannel();
+                
+                int leftoverBytes = (staleBuffer.limit() -
+                    staleBuffer.position());
+                
                 fileBuffer = fileChannel.map(FileChannel.MapMode.READ_WRITE,
                     0, fileLength);
+                while (staleBuffer.position() < staleBuffer.limit()) {
+                    fileBuffer.put(staleBuffer);
+                }
+                staleBuffer = null;
+                bytesRead += leftoverBytes;
             }
             
             bytesRead += socket.read(fileBuffer);
             if (bytesRead >= fileLength) {
                 fileChannel.close();
+                reactor.register(socket, SelectionKey.OP_WRITE,
+                    this, 10);
+            }
+        }
+        
+        private void readError(SocketChannel socket) throws IOException {
+            bytesRead = 0;
+            
+            if (buffer == null) {
+                int leftoverBytes = (staleBuffer.limit() -
+                    staleBuffer.position());
+                buffer = ByteBuffer.allocate(leftoverBytes);
+                while (staleBuffer.position() < staleBuffer.limit()) {
+                    staleBuffer.put(buffer);
+                }
+                bytesRead += leftoverBytes;
+                staleBuffer = null;
+            }
+            
+            bytesRead += socket.read(buffer);
+            if (bytesRead >= fileLength) {
+                byte[] bytes = new byte[fileLength];
+                buffer.rewind();
+                buffer.get(bytes);
+                buffer = null;
+                String message = new String(bytes, "UTF-8");
+                serverError = new IOException(String.format("%s (%s %d)",
+                    message, response.getProtocol(),
+                    response.getStatusCode()));
                 reactor.register(socket, SelectionKey.OP_WRITE,
                     this, 10);
             }
@@ -176,7 +232,10 @@ public class Client {
             if (buffer.hasRemaining()) {
                 socket.write(buffer);
             } else {
-                task.set(outputFile);
+                if (serverError != null)
+                    task.setError(serverError);
+                else
+                    task.set(outputFile);
                 socket.close();
             }
         }
@@ -187,9 +246,9 @@ public class Client {
             for (int i = 0; i < (limit - 1); i++) {
                 b = buffer.get(i);
                 if (b == '\n' && buffer.get(i + 1) == '\n')
-                    return i;
+                    return i + 2;
                 if (b == '\r' && i < (limit - 3) && buffer.get(i + 3) == '\n')
-                    return i;
+                    return i + 4;
             }
 
             return -1;

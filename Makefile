@@ -21,7 +21,8 @@ CLASSES = \
 	commune/peer/Reactor.java \
 	commune/peer/server/Server.java \
 	commune/peer/client/FutureTask.java \
-	commune/peer/client/Client.java
+	commune/peer/client/Client.java \
+	commune/Servent.java
 
 default: classes
 

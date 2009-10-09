@@ -17,6 +17,8 @@ public class Server {
     private ResourceManager manager;
     private ServerSocketChannel serverChannel;
     
+    public static final int DEFAULT_PORT = 2666;
+    
     public Server(Reactor reactor, ResourceManager manager) {
         this.reactor = reactor;
         this.manager = manager;
@@ -29,11 +31,11 @@ public class Server {
         
         ServerSocket socket = serverChannel.socket();
         socket.bind(new InetSocketAddress(port));
-        
         serverChannel.configureBlocking(false);
         
         reactor.register(serverChannel, SelectionKey.OP_ACCEPT,
             new AcceptListener());
+        System.err.println("registered server channel");
     }
     
     private class AcceptListener implements ChannelListener {
@@ -43,6 +45,8 @@ public class Server {
             ServerSocketChannel server = (ServerSocketChannel) channel;
             SocketChannel client = server.accept();
             client.configureBlocking(false);
+            System.out.printf("Got connection from %s.%n",
+                client.socket().getRemoteSocketAddress());
             
             reactor.register(client, SelectionKey.OP_READ,
                 new RequestListener(), 10);
@@ -67,7 +71,7 @@ public class Server {
             if (requestLength < 0) {
                 // we haven't yet gotten the whole request
                 
-                if (buffer.limit() >= buffer.capacity()) {
+                if (buffer.position() >= buffer.limit()) {
                     // and we never will, because our request buffer is full.
                     // close the connection; a request header of more than 4KiB
                     // is probably some kind of attack anyway.
@@ -98,6 +102,7 @@ public class Server {
             throws IOException
         {
             String path = request.getResource();
+            System.out.printf("Got request for %s: ", path);
             AvailableResource resource = manager.getResource(path);
             Response response;
             ChannelListener responder;
@@ -112,6 +117,7 @@ public class Server {
                 response.addHeader("Content-Type", resource.getContentType());
                 responder = new Responder(response, resource.read());
             }
+            System.out.println(response.getStatusText());
             
             reactor.register(client, SelectionKey.OP_WRITE, responder, 15);
         }
@@ -122,9 +128,9 @@ public class Server {
             for (int i = 0; i < (limit - 1); i++) {
                 b = buffer.get(i);
                 if (b == '\n' && buffer.get(i + 1) == '\n')
-                    return i;
+                    return i + 2;
                 if (b == '\r' && i < (limit - 3) && buffer.get(i + 3) == '\n')
-                    return i;
+                    return i + 4;
             }
 
             return -1;
@@ -149,14 +155,13 @@ public class Server {
         }
         
         public Responder(Response response, ByteBuffer body) {
-            response.addHeader("Content-Length",
-                Integer.toString(body.limit()));
-            
             setupBuffers(response, body);
         }
         
         private void setupBuffers(Response response, ByteBuffer body) {
             response.addHeader("Server", "Commune Reference/0.1");
+            response.addHeader("Content-Length",
+                Integer.toString(body.limit()));
             
             String responseString = response.toString();
             try {
@@ -197,6 +202,43 @@ public class Server {
             throws IOException
         {
             SocketChannel client = (SocketChannel) channel;
+            
+            client.read(buffer);
+            int responseLength = findEndOfResponse();
+            if (responseLength < 0) {
+                // we haven't yet gotten the whole response
+                
+                if (buffer.position() >= buffer.limit()) {
+                    // and we never will, because our response buffer is full.
+                    // close the connection; a header of more than 1KiB is
+                    // probably some kind of attack anyway.
+                    System.err.printf("acknowledgement from %s was too " +
+                        "large; dropping connection%n",
+                        client.socket().getRemoteSocketAddress());
+                    client.close();
+                }
+                
+                return;
+            }
+            
+            System.out.printf("Read acknowledgement; closing connection " +
+                "from %s.%n", client.socket().getRemoteSocketAddress());
+            reactor.cancel(client);
+            client.close();
+        }
+        
+        private int findEndOfResponse() {
+            byte b;
+            int limit = buffer.limit();
+            for (int i = 0; i < (limit - 1); i++) {
+                b = buffer.get(i);
+                if (b == '\n' && buffer.get(i + 1) == '\n')
+                    return i + 2;
+                if (b == '\r' && i < (limit - 3) && buffer.get(i + 3) == '\n')
+                    return i + 4;
+            }
+
+            return -1;
         }
     }
 }
