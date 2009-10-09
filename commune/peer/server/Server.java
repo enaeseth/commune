@@ -119,11 +119,11 @@ public class Server {
         private int findEndOfRequest() {
             byte b;
             int limit = buffer.limit();
-            for (int i = 0; i < limit; i++) {
+            for (int i = 0; i < (limit - 1); i++) {
                 b = buffer.get(i);
-                if (b == '\n')
+                if (b == '\n' && buffer.get(i + 1) == '\n')
                     return i;
-                if (b == '\r' && i < (limit - 1) && buffer.get(i + 1) == '\n')
+                if (b == '\r' && i < (limit - 3) && buffer.get(i + 3) == '\n')
                     return i;
             }
 
