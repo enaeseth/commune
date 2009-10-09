@@ -45,7 +45,7 @@ public class Server {
             client.configureBlocking(false);
             
             reactor.register(client, SelectionKey.OP_READ,
-                new RequestListener());
+                new RequestListener(), 10);
         }
     }
     
@@ -100,18 +100,20 @@ public class Server {
             String path = request.getResource();
             AvailableResource resource = manager.getResource(path);
             Response response;
+            ChannelListener responder;
             
             if (resource == null) {
                 response = new Response(404, "Not Found");
-                reactor.register(client, SelectionKey.OP_WRITE,
-                    new Responder(response, "The file you requested was not " +
-                    "found."));
+                responder = new Responder(response,
+                    String.format("The resource you requested (%s) was not " +
+                    "found.", path));
             } else {
                 response = new Response(200, "OK");
                 response.addHeader("Content-Type", resource.getContentType());
-                reactor.register(client, SelectionKey.OP_WRITE,
-                    new Responder(response, resource.read()));
+                responder = new Responder(response, resource.read());
             }
+            
+            reactor.register(client, SelectionKey.OP_WRITE, responder, 15);
         }
         
         private int findEndOfRequest() {
@@ -179,7 +181,7 @@ public class Server {
                 client.write(bodyBuffer);
             } else {
                 reactor.register(client, SelectionKey.OP_READ,
-                    new AcknowledgementListener());
+                    new AcknowledgementListener(), 10);
             }
         }
     }
