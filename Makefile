@@ -16,7 +16,9 @@ CLASSES = \
 	commune/peer/source/AvailableFile.java \
 	commune/peer/source/Source.java \
 	commune/peer/source/DirectorySource.java \
-	commune/peer/source/ResourceManager.java
+	commune/peer/source/ResourceManager.java \
+	commune/peer/ChannelListener.java \
+	commune/peer/Reactor.java
 
 default: classes
 
