@@ -19,7 +19,9 @@ CLASSES = \
 	commune/peer/source/ResourceManager.java \
 	commune/peer/ChannelListener.java \
 	commune/peer/Reactor.java \
-	commune/peer/server/Server.java
+	commune/peer/server/Server.java \
+	commune/peer/client/FutureTask.java \
+	commune/peer/client/Client.java
 
 default: classes
 
