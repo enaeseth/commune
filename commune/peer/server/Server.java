@@ -35,7 +35,6 @@ public class Server {
         
         reactor.register(serverChannel, SelectionKey.OP_ACCEPT,
             new AcceptListener());
-        System.err.println("registered server channel");
     }
     
     private class AcceptListener implements ChannelListener {
