@@ -5,57 +5,37 @@ import java.util.List;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.HashMap;
-import java.util.Scanner;
-import java.io.PrintWriter;
+import java.nio.ByteBuffer;
+import java.nio.BufferUnderflowException;
+import java.io.UnsupportedEncodingException;
 
 /**
- * Base type for Commune messages that contain name-value header lines.
+ * Base type for Commune messages.
+ * Contains facilities for messages to be parsed and serialized.
  */
 public abstract class Message {
-    public static final String NATIVE_PROTOCOL = "Commune/0.1";
-    private Map<String, List<String>> headers;
+    public static final int HEADER_LENGTH = 8;
+    
+    private static Map<Short, MessageParser> types;
+    private short type;
+    
+    static {
+        types = new HashMap<Short, MessageParser>();
+    }
     
     /**
      * Initialize the message object.
      */
-    protected Message() {
-        headers = new HashMap<String, List<String>>();
+    protected Message(short type) {
+        this.type = type;
     }
     
     /**
-     * Adds a header to this request.
+     * Returns the type code of this message.
+     * @return type code of this message
      */
-    public void addHeader(String name, String value) {
-        List<String> container = headers.get(name);
-        if (container == null) {
-            container = new LinkedList<String>();
-            headers.put(name, container);
-        }
-        
-        container.add(value);
-    }
-    
-    /**
-     * Gets all headers and their values.
-     */
-    public Map<String, List<String>> getHeaders() {
-        return Collections.unmodifiableMap(headers);
-    }
-    
-    /**
-     * Gets all values for the given header name.
-     */
-    public List<String> getHeader(String name) {
-        return headers.get(name);
-    }
-    
-    /**
-     * Returns the first value for the header with the given name.
-     * @return first value for the header with the given name
-     */
-    public String getFirstHeader(String name) {
-        List<String> values = getHeader(name);
-        return (values != null) ? values.get(0) : null;
+    public short getType() {
+        return type;
     }
     
     public boolean equals(Object o) {
@@ -65,37 +45,138 @@ public abstract class Message {
     }
     
     public boolean equals(Message o) {
-        return headers.equals(o.getHeaders());
+        return o.getType() == getType(); // XXX
     }
     
-    protected void writeHeaders(PrintWriter writer) {
-        for (Map.Entry<String, List<String>> pair : headers.entrySet()) {
-            String name = pair.getKey();
-            
-            for (String value : pair.getValue()) {
-                writer.printf("%s: %s\r\n", name, value);
+    /**
+     * Parse the message found in the given byte buffer.
+     * @return an instance of a subclass of Message representing the message
+     * @throws InvalidMessageException if the message type is unknown or if
+     *         the message format is invalid
+     */
+    public static Message parseMessage(ByteBuffer buf)
+        throws InvalidMessageException
+    {
+        int length = buf.getInt();
+        short typeCode = buf.getShort();
+        short checksum = buf.getShort();
+        
+        MessageParser parser = types.get(typeCode);
+        if (parser == null) {
+            throw new InvalidMessageException(String.format("Unknown " +
+                "message type code %d.", typeCode));
+        }
+        
+        return parser.parse(buf, length);
+    }
+    
+    public abstract ByteBuffer getBytes();
+    
+    protected void writeHeader(ByteBuffer destination, int length) {
+        destination.putInt(length);
+        destination.putShort(getType());
+        destination.putShort((short) 0); // no checksum (for now?)
+    }
+    
+    protected ByteBuffer formatMessage(Object... parts) {
+        int length = HEADER_LENGTH;
+        LinkedList<Object> strings = null;
+        
+        // Calculate the length of the packet.
+        for (Object part : parts) {
+            if (part instanceof String) {
+                byte[] bytes = encodeString((String) part);
+                length += (2 + bytes.length);
+                
+                if (strings == null)
+                    strings = new LinkedList<Object>();
+                strings.add((Object) bytes);
+            } else if (part instanceof Long) {
+                length += 8;
+            } else if (part instanceof Integer) {
+                length += 4;
+            } else if (part instanceof Short) {
+                length += 2;
+            } else if (part instanceof Byte || part instanceof Boolean) {
+                length += 1;
+            } else if (part instanceof ByteBuffer) {
+                length += ((ByteBuffer) part).limit();
+            } else {
+                throw new IllegalArgumentException("Message part " + part +
+                    " cannot be formatted.");
             }
         }
         
-        writer.print("\r\n");
+        // Create and fill the packet's buffer.
+        ByteBuffer buf = ByteBuffer.allocate(length);
+        writeHeader(buf, length);
+        
+        for (Object part : parts) {
+            if (part instanceof String) {
+                writeString(buf, (byte[]) strings.removeFirst());
+            } else if (part instanceof Long) {
+                buf.putLong((Long) part);
+            } else if (part instanceof Integer) {
+                buf.putInt((Integer) part);
+            } else if (part instanceof Short) {
+                buf.putShort((Short) part);
+            } else if (part instanceof Byte) {
+                buf.put((Byte) part);
+            } else if (part instanceof Boolean) {
+                buf.put((byte) (((Boolean) part).booleanValue() ? 1 : 0));
+            } else if (part instanceof ByteBuffer) {
+                buf.put((ByteBuffer) part);
+            }
+        }
+        
+        buf.flip();
+        return buf;
     }
     
-    protected static void readHeaders(Scanner scanner, Message message)
+    static void addParser(short typeCode, MessageParser parser) {
+        types.put(typeCode, parser);
+    }
+    
+    static String readString(ByteBuffer source)
         throws InvalidMessageException
     {
-        while (scanner.hasNextLine()) {
-            String line = scanner.nextLine();
-            if (line.length() == 0) {
-                break;
-            }
-            
-            String[] parts = line.split(": ", 2);
-            if (parts.length != 2) {
-                throw new InvalidMessageException("Invalid header line: " +
-                    line);
-            }
-            
-            message.addHeader(parts[0], parts[1]);
+        int length = source.getShort();
+        byte[] data = new byte[length];
+        
+        try {
+            source.get(data);
+            return new String(data, "UTF-8");
+        } catch (BufferUnderflowException e) {
+            String message = String.format(
+                "Buffer underflow while reading a %d-byte string.", length);
+            throw new InvalidMessageException(message, e);
+        } catch (UnsupportedEncodingException e) {
+            // All JVM implementations must support UTF-8; this code should
+            // be unreachable.
+            throw new RuntimeException(e);
         }
+    }
+    
+    static byte[] encodeString(String string) {
+        try {
+            byte[] bytes = string.getBytes("UTF-8");
+            if (bytes.length > Short.MAX_VALUE)
+                throw new RuntimeException("String is too long.");
+            return bytes;
+        } catch (UnsupportedEncodingException e) {
+            // All JVM implementations must support UTF-8; this code should
+            // be unreachable.
+            throw new RuntimeException(e);
+        }
+    }
+    
+    static int writeString(ByteBuffer destination, String string) {
+        return writeString(destination, encodeString(string));
+    }
+    
+    static int writeString(ByteBuffer destination, byte[] bytes) {
+        destination.putShort((short) bytes.length);
+        destination.put(bytes);
+        return bytes.length;
     }
 }

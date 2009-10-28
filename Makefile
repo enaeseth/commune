@@ -1,28 +1,30 @@
 JC = javac
-JFLAGS = -g -deprecation
 .SUFFIXES: .java .class
 
 .java.class:
-	$(JC) $(JFLAGS) $*.java
+	$(JC) $*.java
 
 CLASSES = \
 	commune/protocol/InvalidMessageException.java \
+	commune/protocol/MessageParser.java \
 	commune/protocol/Message.java \
-	commune/protocol/InvalidRequestException.java \
-	commune/protocol/Request.java \
-	commune/protocol/InvalidResponseException.java \
-	commune/protocol/Response.java \
-	commune/peer/source/AvailableResource.java \
-	commune/peer/source/AvailableFile.java \
-	commune/peer/source/Source.java \
-	commune/peer/source/DirectorySource.java \
-	commune/peer/source/ResourceManager.java \
-	commune/peer/ChannelListener.java \
-	commune/peer/Reactor.java \
-	commune/peer/server/Server.java \
-	commune/peer/client/FutureTask.java \
-	commune/peer/client/Client.java \
-	commune/Servent.java
+	commune/protocol/HelloMessage.java \
+	commune/protocol/RequestMessage.java \
+	commune/protocol/ResponseMessage.java \
+	commune/protocol/TransferStartMessage.java \
+	commune/protocol/PayloadMessage.java \
+	commune/protocol/AcknowledgementMessage.java
+	# commune/peer/source/AvailableResource.java \
+	# commune/peer/source/AvailableFile.java \
+	# commune/peer/source/Source.java \
+	# commune/peer/source/DirectorySource.java \
+	# commune/peer/source/ResourceManager.java \
+	# commune/peer/ChannelListener.java \
+	# commune/peer/Reactor.java \
+	# commune/peer/server/Server.java \
+	# commune/peer/client/FutureTask.java \
+	# commune/peer/client/Client.java \
+	# commune/Servent.java
 
 default: classes
 
