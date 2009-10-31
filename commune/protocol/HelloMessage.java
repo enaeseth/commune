@@ -3,7 +3,7 @@ package commune.protocol;
 import java.nio.ByteBuffer;
 
 public class HelloMessage extends Message {
-    private static final short CODE = 0x01;
+    public static final short CODE = 0x01;
     
     private String agent;
     private boolean acknowledgement;

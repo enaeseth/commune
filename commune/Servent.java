@@ -65,6 +65,24 @@ public class Servent implements Runnable {
         
         reactorThread.start();
         
+        /*
+        new Timer(true).schedule(new TimerTask() {
+            public void run() {
+                Map<Thread, StackTraceElement[]> m = Thread.getAllStackTraces();
+                
+                for (Map.Entry<Thread, StackTraceElement[]> p : m.entrySet()) {
+                    if (p.getKey().getThreadGroup().getName() == "system")
+                        continue;
+                    
+                    System.out.println(p.getKey());
+                    for (StackTraceElement el : p.getValue()) {
+                        System.out.printf("    %s%n", el);
+                    }
+                }
+            }
+        }, 30000, 10000);
+        */
+        
         Scanner in = new Scanner(System.in);
         int choice = 1;
         int port;

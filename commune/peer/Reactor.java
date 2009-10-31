@@ -25,19 +25,54 @@ public class Reactor {
     public void register(final SelectableChannel channel, int operations,
         ChannelListener listener, int timeout) throws ClosedChannelException
     {
+        register(channel, operations, listener, timeout, new Runnable() {
+            public void run() {
+                try {
+                    channel.close();
+                } catch (IOException e) {
+                    // ignore
+                }
+            }
+        });
+    }
+    
+    public void register(SelectableChannel channel, int operations,
+        ChannelListener listener, int timeout, Runnable timeoutAction)
+        throws ClosedChannelException
+    {
+        /*
+        System.out.print("Registering ");
+        if (channel instanceof ServerSocketChannel) {
+            System.out.printf("server socket %s\t",
+                ((ServerSocketChannel) channel).socket().getLocalSocketAddress());
+        } else if (channel instanceof SocketChannel) {
+            System.out.printf("socket to %s\t",
+                ((SocketChannel) channel).socket().getRemoteSocketAddress());
+        } else if (channel instanceof DatagramChannel) {
+            System.out.printf("datagram socket %s\t",
+                ((DatagramChannel) channel).socket().getLocalSocketAddress());
+        } else {
+            System.out.printf("%s\t", channel);
+        }
+        
+        if ((operations & SelectionKey.OP_ACCEPT) != 0) {
+            System.out.print("ACCEPT ");
+        }
+        if ((operations & SelectionKey.OP_READ) != 0) {
+            System.out.print("READ ");
+        }
+        if ((operations & SelectionKey.OP_WRITE) != 0) {
+            System.out.print("WRITE ");
+        }
+        System.out.println();
+        */
+        
         SelectionKey key = channel.keyFor(selector);
         ChannelState state;
         if (key == null) {
             if (timeout > 0) {
-                state = new ChannelState(listener, new Runnable() {
-                    public void run() {
-                        try {
-                            channel.close();
-                        } catch (IOException e) {
-                            // ignore
-                        }
-                    }
-                }, timeout, TimeUnit.SECONDS);
+                state = new ChannelState(listener, timeoutAction, timeout,
+                    TimeUnit.SECONDS);
             } else {
                 state = new ChannelState(listener);
             }
@@ -48,13 +83,15 @@ public class Reactor {
         
         key.interestOps(operations);
         
-        state = (ChannelState) key.attachment();
-        if (timeout > 0) {
-            state.resetTimeout(timeout, TimeUnit.SECONDS);
-        } else {
-            state.cancelTimeout();
+        synchronized (this) {
+            state = (ChannelState) key.attachment();
+            if (timeout > 0) {
+                state.resetTimeout(timeoutAction, timeout, TimeUnit.SECONDS);
+            } else {
+                state.cancelTimeout();
+            }
+            state.setListener(listener);
         }
-        state.setListener(listener);
     }
     
     public boolean cancel(SelectableChannel channel) {
@@ -76,12 +113,14 @@ public class Reactor {
             
             while (keys.hasNext()) {
                 SelectionKey key = keys.next();
+                // System.out.println(key.channel());
                 keys.remove();
                 
                 try {
                     handleKey(key);
                 } catch (IOException e) {
-                    System.err.println(e.getMessage());
+                    if (!(e instanceof PortUnreachableException))
+                        System.err.println(e);
                     key.cancel();
                     key.channel().close();
                 }
@@ -92,8 +131,12 @@ public class Reactor {
     }
     
     private void handleKey(SelectionKey key) throws IOException {
-        ChannelState state = (ChannelState) key.attachment();
-        state.getListener().ready(key.channel(), key.readyOps());
+        try {
+            ChannelState state = (ChannelState) key.attachment();
+            state.getListener().ready(key.channel(), key.readyOps());
+        } catch (CancelledKeyException e) {
+            System.err.printf("warning: %s%n", e);
+        }
     }
     
     /**
@@ -101,7 +144,6 @@ public class Reactor {
      */
     private class ChannelState {
         private ChannelListener listener;
-        private Runnable timeoutAction;
         private ScheduledFuture<?> timeoutTask;
         
         public ChannelState(ChannelListener listener) {
@@ -112,7 +154,6 @@ public class Reactor {
             long timeout, TimeUnit unit) 
         {
             this.listener = listener;
-            this.timeoutAction = timeoutAction;
             if (timeoutAction != null)
                 timeoutTask = executor.schedule(timeoutAction, timeout, unit);
         }
@@ -132,13 +173,10 @@ public class Reactor {
             this.listener = listener;
         }
         
-        public void resetTimeout(long timeout, TimeUnit unit) {
-            if (timeoutAction == null) {
-                throw new IllegalStateException("This channel never had a " +
-                    "timeout.");
-            }
-            
-            if (timeoutTask.cancel(false)) {
+        public void resetTimeout(Runnable timeoutAction, long timeout,
+            TimeUnit unit)
+        {
+            if (timeoutTask == null || timeoutTask.cancel(false)) {
                 timeoutTask = executor.schedule(timeoutAction, timeout, unit);
             }
         }

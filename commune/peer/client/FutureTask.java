@@ -27,6 +27,9 @@ public class FutureTask<V> implements Future<V> {
     public V get() throws ExecutionException, InterruptedException {
         lock.lock();
         try {
+            if (set)
+                return value;
+            
             ready.await();
             
             if (error != null)
@@ -43,6 +46,9 @@ public class FutureTask<V> implements Future<V> {
     {
         lock.lock();
         try {
+            if (set)
+                return value;
+            
             if (!ready.await(timeout, unit)) {
                 throw new TimeoutException();
             }

@@ -3,7 +3,7 @@ package commune.protocol;
 import java.nio.ByteBuffer;
 
 public class ResponseMessage extends Message {
-    private static final short CODE = 0x11;
+    public static final short CODE = 0x11;
     
     private int id;
     private short statusCode;
@@ -41,7 +41,7 @@ public class ResponseMessage extends Message {
      * Returns the status code.
      * @return status code
      */
-    public int getStatusCode() {
+    public short getStatusCode() {
         return statusCode;
     }
     

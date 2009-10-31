@@ -3,7 +3,8 @@ package commune.protocol;
 import java.nio.ByteBuffer;
 
 public class AcknowledgementMessage extends Message {
-    private static final short CODE = 0x22;
+    public static final short CODE = 0x22;
+    public static final int BODY_LENGTH = 6;
     
     private int transferID;
     private long offset;

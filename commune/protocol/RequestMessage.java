@@ -3,7 +3,7 @@ package commune.protocol;
 import java.nio.ByteBuffer;
 
 public class RequestMessage extends Message {
-    private static final short CODE = 0x10;
+    public static final short CODE = 0x10;
     
     private int id;
     private String path;

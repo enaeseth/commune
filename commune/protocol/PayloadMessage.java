@@ -3,7 +3,7 @@ package commune.protocol;
 import java.nio.ByteBuffer;
 
 public class PayloadMessage extends Message {
-    private static final short CODE = 0x21;
+    public static final short CODE = 0x21;
     public static final int OVERHEAD = 12;
     
     private int transferID;
@@ -62,5 +62,24 @@ public class PayloadMessage extends Message {
                 return new PayloadMessage(transferID, offset, body);
             }
         });
+    }
+    
+    public String toString() {
+        StringBuilder builder = new StringBuilder();
+        
+        builder.append(String.format("[payload id=%d, offset=%d: {",
+            getTransferID(), getOffset()));
+        
+        boolean first = true;
+        for (byte b : getBody()) {
+            if (first)
+                first = false;
+            else
+                builder.append(", ");
+            builder.append(String.format("%02X", b));
+        }
+        builder.append("}]");
+        
+        return builder.toString();
     }
 }

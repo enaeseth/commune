@@ -3,13 +3,13 @@ package commune.protocol;
 import java.nio.ByteBuffer;
 
 public class TransferStartMessage extends Message {
-    private static final short CODE = 0x20;
+    public static final short CODE = 0x20;
     
     private int serverID;
     private int transferID;
-    private short port;
+    private int port;
     
-    public TransferStartMessage(int serverID, int transferID, short port) {
+    public TransferStartMessage(int serverID, int transferID, int port) {
         super(CODE);
         this.serverID = serverID;
         this.transferID = transferID;
@@ -38,12 +38,12 @@ public class TransferStartMessage extends Message {
      * Returns the port to which the transfer should be sent.
      * @return port to which the transfer should be sent
      */
-    public short getPort() {
+    public int getPort() {
         return port;
     }
     
     public ByteBuffer getBytes() {
-        return formatMessage(getServerID(), getTransferID(), getPort());
+        return formatMessage(getServerID(), getTransferID(), (short) getPort());
     }
     
     static {
@@ -53,7 +53,7 @@ public class TransferStartMessage extends Message {
             {
                 int serverID = buf.getInt();
                 int transferID = buf.getInt();
-                short port = buf.getShort();
+                int port = (int) buf.getChar();
                 
                 return new TransferStartMessage(serverID, transferID, port);
             }
