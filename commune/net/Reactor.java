@@ -7,13 +7,52 @@ import java.nio.channels.*;
 import java.util.*;
 import java.util.concurrent.*;
 
-public class Reactor {
+public class Reactor implements Runnable {
     private Selector selector;
     private ScheduledExecutorService timeoutService;
+    private Thread thread;
     
     public Reactor() throws IOException {
         selector = Selector.open();
         timeoutService = Executors.newScheduledThreadPool(1);
+        thread = null;
+    }
+    
+    public Thread start() {
+        thread = new Thread(this, "Reactor");
+        thread.start();
+        return thread;
+    }
+    
+    public void run() {
+        while (!Thread.interrupted()) {
+            try {
+                selector.select();
+            } catch (IOException e) {
+                System.err.println("=== error in select() ===");
+                e.printStackTrace();
+                return;
+            }
+            
+            Iterator<SelectionKey> keys = selector.selectedKeys().iterator();
+            
+            while (keys.hasNext()) {
+                SelectionKey key = keys.next();
+                keys.remove();
+                
+                State state = (State) key.attachment();
+                try {
+                    state.dispatch(key.readyOps());
+                } catch (IOException e) {
+                    if (!(e instanceof PortUnreachableException))
+                        System.err.println(e);
+                    cancel(key.channel());
+                    try {
+                        key.channel().close();
+                    } catch (IOException ignored) { /* ignore */ }
+                }
+            }
+        }
     }
     
     public boolean listen(SelectableChannel channel, Operation operation,
@@ -22,21 +61,8 @@ public class Reactor {
         return listen(channel, EnumSet.of(operation), listener);
     }
     
-    public boolean listen(SelectableChannel channel, Operation operation,
-        Listener listener, int timeout, TimeoutTask task)
-    {
-        return listen(channel, EnumSet.of(operation), listener, timeout, task);
-    }
-    
     public boolean listen(SelectableChannel channel,
         EnumSet<Operation> operations, Listener listener)
-    {
-        return listen(channel, operations, listener, 0, null);
-    }
-    
-    public boolean listen(SelectableChannel channel,
-        EnumSet<Operation> operations, Listener listener, int timeout,
-        TimeoutTask task)
     {
         SelectionKey key = channel.keyFor(selector);
         State state;
@@ -51,11 +77,15 @@ public class Reactor {
         
         for (Operation op : operations) {
             state.setListener(op, listener);
-            if (timeout > 0 && task != null)
-                state.setTimeout(op, task, timeout);
             interestOps |= op.selectorOperation();
         }
         
+        return setOperations(channel, key, interestOps, state);
+    }
+    
+    private boolean setOperations(SelectableChannel channel, SelectionKey key,
+        int interestOps, State state)
+    {
         try {
             if (key != null) {
                 key.interestOps(interestOps);
@@ -70,6 +100,34 @@ public class Reactor {
             e.printStackTrace();
             return false;
         }
+    }
+    
+    public boolean timeout(SelectableChannel channel, Operation operation,
+        int delay, TimeoutTask task)
+    {
+        return timeout(channel, EnumSet.of(operation), delay, task);
+    }
+    
+    public boolean timeout(SelectableChannel channel,
+        EnumSet<Operation> operations, int delay, TimeoutTask task)
+    {
+        SelectionKey key = channel.keyFor(selector);
+        State state;
+        int interestOps = 0;
+        
+        if (key != null) {
+            interestOps = key.interestOps();
+            state = (State) key.attachment();
+        } else {
+            state = new State(channel);
+        }
+        
+        for (Operation op : operations) {
+            state.setTimeout(op, task, delay);
+            interestOps |= op.selectorOperation();
+        }
+        
+        return setOperations(channel, key, interestOps, state);
     }
     
     public boolean remove(SelectableChannel channel, Operation operation) {
@@ -122,6 +180,19 @@ public class Reactor {
             listeners = new EnumMap<Operation, Listener>(Operation.class);
             timeoutTasks =
                 new EnumMap<Operation, ScheduledFuture<?>>(Operation.class);
+        }
+        
+        public void dispatch(int readyOps) throws IOException {
+            for (Map.Entry<Operation, Listener> e : listeners.entrySet()) {
+                Operation op = e.getKey();
+                
+                if ((readyOps & op.selectorOperation()) != 0) {
+                    Listener listener = e.getValue();
+                    
+                    clearTimeout(op);
+                    listener.ready(channel);
+                }
+            }
         }
         
         public void setListener(Operation op, Listener listener) {
