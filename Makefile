@@ -14,6 +14,10 @@ CLASSES = \
 	commune/protocol/TransferStartMessage.java \
 	commune/protocol/PayloadMessage.java \
 	commune/protocol/AcknowledgementMessage.java \
+	commune/net/Listener.java \
+	commune/net/TimeoutTask.java \
+	commune/net/Operation.java \
+	commune/net/Reactor.java \
 	commune/peer/source/AvailableResource.java \
 	commune/peer/source/AvailableFile.java \
 	commune/peer/source/Source.java \
