@@ -1,48 +1,17 @@
-Commune
-by Eric Naeseth
-
 ========================
 Running the servent:
-  1. Run "make". (Java 1.6 may be required.)
+  1. Run "make". (Java 1.6 shouldn't be needed anymore.)
   2. Run "./run [port]". If no port is given, it defaults to 2666.
 ========================
 
-I picked a pretty ambitious design for this servent, as you can probably tell
-by the sheer number of classes involved in it. That was probably a mistake,
-since I came quite close to running out of time, but it does mostly work.
+If I could go back in time, I would stop myself from doing any of this non-blocking stuff. It is an absolutely tremendous pain to debug.
 
-The protocol is based largely on HTTP: the client sends the server a GET
-request, the server responds with either an error response and an associated
-message or an OK response and the content of the requested file. After the
-client gets the response, it sends its own acknowledgement to the server saying
-that it accepted the response, and then the server closes the connection.
-Currently the only response messages are "OK" and "Not Found".
+As stipulated by Amy, payload messages sent from the server to the client have a sequence number giving the offset (in bytes) of the requested file at which the start of the data in the message is located. Upon receipt of a payload message, the client sends an acknowledgement of the sequence number of the last in-order message it received.
 
-The server and the client both employ timeouts to make sure that the connection
-isn't simply held open forever. If it's one side's turn to send something or
-receive something, and that side doesn't do so within a certain number of
-seconds (it varies from stage to stage), the connection is closed. When an
-invalid protocol message is received by either end, it reports the error and
-closes the connection to its peer.
+I ended up using a window size of 400 bytes (4 messages at a time). With lower values, the socket timeout comes into play more often as the probability that a dropped packet will be the last one in a window increases. (When the last packet is dropped, there is no packet sent after it to indicate to the client that something was missing.) Values much larger than 6 messages cause things to go a bit crazy. Again, why non-blocking? What was I thinking? Also, increasing the size of each message had a much larger impact on transfer time than increasing the number of messages out at once.
 
-The servent uses a non-blocking architecture. In Java, you traditionally deal
-with multiple connections at once by creating threads. Each network call (e.g.,
-accept(), read()) will stall until it finishes its task, so threads are
-necessary so that your entire application does not stall while dealing with one
-peer.
-
-A non-blocking design only requires one network thread. Generally speaking, it
-waits until one or more of its sockets is ready to do something, it handles
-those sockets, and then goes back to waiting. As long as the things that happen
-when a socket is ready for action take place reasonably quickly, there's no
-need to create multiple threads.
-
-Commune's Reactor class is what manages the network thread. Other parts of the
-application register their sockets with the Reactor: they ask the Reactor to
-watch the socket to see when it's ready to perform a particular task (accepting
-a connection, reading data from a peer, etc.), and to call a method on an
-object when that happens. This makes the server code quite nice: there's one
-nested class for each "state" a connection can be in: first accepting the
-connection, receiving the request, sending the response, and receiving the
-acknowledgement. (Unfortunately, the client code is a bit messier since I was
-running out of time.)
+A file transfer is set up in the following way:
+1. The client sends a request to the server.
+2. The server responds, giving a status code and message for the request and some meta-information about the file (size and type) if the request was successful.
+3. If the server responds with "OK", the client begins listening for UDP datagrams on a port and requests that the server send it the file over that port.
+4. The server sends data until the entire file has been acknowledged.
