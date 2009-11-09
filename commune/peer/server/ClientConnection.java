@@ -54,7 +54,7 @@ public class ClientConnection {
                 getRemoteAddress(), message.getUserAgent());
             
             helloReceived = true;
-            broker.send(new HelloMessage("Commune Reference/0.3", true));
+            broker.send(new HelloMessage("Commune Reference/0.4 (PEX)", true));
         }
     }
     

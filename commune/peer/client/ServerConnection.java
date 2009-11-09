@@ -73,7 +73,7 @@ public class ServerConnection {
     public void sendHello() {
         System.out.printf("[client] sending hello to %s%n",
             getRemoteAddress());
-        broker.send(new HelloMessage("Commune Reference/0.3", false));
+        broker.send(new HelloMessage("Commune Reference/0.4 (PEX)", false));
     }
     
     private Request createRequest(String path) {
