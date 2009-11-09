@@ -123,8 +123,8 @@ public class Servent {
         } catch (IOException e) {
             if (peer != null)
                 knownPeers.remove(peer);
-            throw new IOException(
-                String.format("Failed to connect to %s.", peer), e);
+            throw (IOException) new IOException(
+                String.format("Failed to connect to %s.", peer)).initCause(e);
         }
     }
     
