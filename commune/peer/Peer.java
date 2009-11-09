@@ -7,6 +7,7 @@ import java.net.InetSocketAddress;
 import java.util.Collections;
 import java.util.Set;
 import java.util.HashSet;
+import java.util.Random;
 import java.util.regex.*;
 
 /**
@@ -65,6 +66,28 @@ public class Peer {
      */
     public int getPort() {
         return port;
+    }
+    
+    /**
+     * Returns a socket address that may be used to connect to the peer.
+     * @return a socket address that may be used to connect to the peer.
+     * @throws UnknownHostException if no such address can be determined
+     */
+    public InetSocketAddress getAddress() throws UnknownHostException {
+        InetAddress[] addresses = InetAddress.getAllByName(hostname);
+        InetAddress blessed = null;
+        
+        for (InetAddress address : addresses) {
+            if (address instanceof Inet6Address) {
+                blessed = address;
+                break;
+            }
+        }
+        
+        if (blessed == null)
+            blessed = addresses[new Random().nextInt(addresses.length)];
+        
+        return new InetSocketAddress(blessed, port);
     }
     
     /**
