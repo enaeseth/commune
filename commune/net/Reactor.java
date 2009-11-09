@@ -116,6 +116,25 @@ public class Reactor implements Runnable {
         return setOperations(channel, key, interestOps, state);
     }
     
+    public Object getAttachment(SelectableChannel channel) {
+        SelectionKey key = channel.keyFor(selector);
+        if (key != null) {
+            State state = (State) key.attachment();
+            return state.getAttachment();
+        }
+        return null;
+    }
+    
+    public boolean attach(SelectableChannel channel, Object attachment) {
+        SelectionKey key = channel.keyFor(selector);
+        if (key != null) {
+            State state = (State) key.attachment();
+            state.setAttachment(attachment);
+            return true;
+        }
+        return false;
+    }
+    
     private boolean setOperations(SelectableChannel channel, SelectionKey key,
         int interestOps, State state)
     {
@@ -223,12 +242,26 @@ public class Reactor implements Runnable {
         private SelectableChannel channel;
         private EnumMap<Operation, Listener> listeners;
         private EnumMap<Operation, ScheduledFuture<?>> timeoutTasks;
+        private Object attachment;
         
         public State(SelectableChannel channel) {
             this.channel = channel;
             listeners = new EnumMap<Operation, Listener>(Operation.class);
             timeoutTasks =
                 new EnumMap<Operation, ScheduledFuture<?>>(Operation.class);
+            attachment = null;
+        }
+        
+        /**
+         * Returns the channel's reactor attachment.
+         * @return channel's reactor attachment
+         */
+        public Object getAttachment() {
+            return attachment;
+        }
+        
+        public void setAttachment(Object newAttachment) {
+            attachment = newAttachment;
         }
         
         public void dispatch(int readyOps) throws IOException {
