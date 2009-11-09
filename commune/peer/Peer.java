@@ -33,7 +33,7 @@ public class Peer implements Comparable<Peer> {
     
     public Peer(String hostname, int port, String userAgent, long lastContact)
     {
-        this.hostname = hostname;
+        this.hostname = hostname.toLowerCase();
         this.port = port;
         this.userAgent = userAgent;
         this.lastContact = lastContact;
