@@ -24,6 +24,7 @@ public class Servent {
     private int connectionLimit;
     private Map<Peer, Connection> connections;
     private Map<Long, Peer> knownPeers;
+    private Set<Long> deadPeers;
     private ServerSocketChannel serverChannel;
     private InetSocketAddress localAddress;
     private PeerListener updater;
@@ -46,6 +47,7 @@ public class Servent {
             new HashMap<Peer, Connection>());
         knownPeers = Collections.synchronizedMap(
             new HashMap<Long, Peer>());
+        deadPeers = Collections.synchronizedSet(new HashSet<Long>());
         updater = new PeerUpdater();
         reactor.addCloseListener(new Disconnecter());
         
@@ -142,8 +144,10 @@ public class Servent {
             peer = available.get(0);
             return getConnection(peer);
         } catch (IOException e) {
-            if (peer != null)
+            if (peer != null) {
                 knownPeers.remove(peer.getID());
+                deadPeers.add(peer.getID());
+            }
             throw (IOException) new IOException(
                 String.format("Failed to connect to %s.", peer)).initCause(e);
         }
@@ -249,6 +253,7 @@ public class Servent {
             System.out.printf("connection to %s closed%n", peer);
             connections.remove(peer);
             knownPeers.remove(peer.getID());
+            deadPeers.add(peer.getID());
             openConnections();
         }
         
@@ -264,6 +269,9 @@ public class Servent {
             for (Peer peer : peers) {
                 if (peer.getID() == localID) {
                     // don't add ourselves as a known peer
+                    continue;
+                } else if (deadPeers.contains(peer.getID())) {
+                    // peer is known to be dead
                     continue;
                 }
                 
