@@ -28,8 +28,8 @@ CLASSES = \
 	commune/peer/client/ServerConnection.java \
 	commune/peer/client/Client.java \
 	commune/peer/client/FutureTask.java \
-	commune/peer/client/ServerConnection.java
-	# commune/Servent.java
+	commune/peer/client/ServerConnection.java \
+	commune/Servent.java
 
 default: classes
 

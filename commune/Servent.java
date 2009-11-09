@@ -1,6 +1,6 @@
 package commune;
 
-import commune.peer.Reactor;
+import commune.net.Reactor;
 import commune.peer.client.Client;
 import commune.peer.server.Server;
 import commune.source.ResourceManager;
@@ -43,17 +43,7 @@ public class Servent implements Runnable {
         // Create and start the reactor thread
         final Reactor reactor = this.reactor;
         final Thread mainThread = Thread.currentThread();
-        final Thread reactorThread = new Thread(new Runnable() {
-            public void run() {
-                try {
-                    reactor.run();
-                } catch (IOException e) {
-                    System.err.println(e);
-                    System.exit(1);
-                }
-            }
-        }, "Reactor");
-        
+                
         try {
             server.listen(serverPort);
         } catch (IOException e) {
@@ -62,25 +52,7 @@ public class Servent implements Runnable {
             System.exit(1);
         }
         
-        reactorThread.start();
-        
-        /*
-        new Timer(true).schedule(new TimerTask() {
-            public void run() {
-                Map<Thread, StackTraceElement[]> m = Thread.getAllStackTraces();
-                
-                for (Map.Entry<Thread, StackTraceElement[]> p : m.entrySet()) {
-                    if (p.getKey().getThreadGroup().getName() == "system")
-                        continue;
-                    
-                    System.out.println(p.getKey());
-                    for (StackTraceElement el : p.getValue()) {
-                        System.out.printf("    %s%n", el);
-                    }
-                }
-            }
-        }, 30000, 10000);
-        */
+        final Thread reactorThread = reactor.start();
         
         Scanner in = new Scanner(System.in);
         int choice = 1;
