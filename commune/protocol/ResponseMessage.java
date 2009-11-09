@@ -25,6 +25,8 @@ public class ResponseMessage extends Message {
         this.statusDescription = statusDescription;
         this.fileLength = fileLength;
         this.contentType = contentType;
+        if (this.contentType == null)
+            this.contentType = "application/octet-stream";
     }
     
     /**
