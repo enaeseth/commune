@@ -109,6 +109,13 @@ public class Peer {
     }
     
     /**
+     * Updates the last-contact time to be the current time.
+     */
+    public void touch() {
+        lastContact = System.currentTimeMillis();
+    }
+    
+    /**
      * Returns the user agent's reported attribute set.
      * @return user agent's reported attribute set
      */
