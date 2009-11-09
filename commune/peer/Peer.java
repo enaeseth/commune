@@ -145,4 +145,13 @@ public class Peer {
     public String toString() {
         return String.format("<%s:%d; %s>", hostname, port, userAgent);
     }
+    
+    public static void main(String... args) throws UnknownHostException {
+        Peer peer = new Peer("rabin.mathcs.carleton.edu", 2666,
+            "Commune Reference/0.5 (Search; PEX)");
+        System.out.println(peer);
+        System.out.println(peer.getAttributes());
+        System.out.println(peer.exchangesPeers());
+        System.out.println(peer.getAddress());
+    }
 }
