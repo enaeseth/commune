@@ -23,7 +23,7 @@ public class Servent {
     private File storageFolder;
     private int connectionLimit;
     private Map<Peer, Connection> connections;
-    private Set<Peer> knownPeers;
+    private Map<Long, Peer> knownPeers;
     private ServerSocketChannel serverChannel;
     private InetSocketAddress localAddress;
     private PeerListener updater;
@@ -44,7 +44,8 @@ public class Servent {
         
         connections = Collections.synchronizedMap(
             new HashMap<Peer, Connection>());
-        knownPeers = Collections.synchronizedSet(new HashSet<Peer>());
+        knownPeers = Collections.synchronizedMap(
+            new HashMap<Long, Peer>());
         updater = new PeerUpdater();
         reactor.addCloseListener(new Disconnecter());
         
@@ -92,7 +93,7 @@ public class Servent {
         List<Peer> peerList;
         synchronized (knownPeers) {
             peerList = new ArrayList<Peer>(knownPeers.size());
-            for (Peer peer : knownPeers) {
+            for (Peer peer : knownPeers.values()) {
                 try {
                     if (peer.getAddress().getAddress().isLoopbackAddress())
                         continue;
@@ -142,7 +143,7 @@ public class Servent {
             return getConnection(peer);
         } catch (IOException e) {
             if (peer != null)
-                knownPeers.remove(peer);
+                knownPeers.remove(peer.getID());
             throw (IOException) new IOException(
                 String.format("Failed to connect to %s.", peer)).initCause(e);
         }
@@ -230,7 +231,7 @@ public class Servent {
             } else {
                 connections.put(peer, connection);
             }
-            knownPeers.add(peer);
+            knownPeers.put(peer.getID(), peer);
             
             if (isServer && peer.exchangesPeers()) {
                 connection.exchangePeers(getKnownPeers(connection));
@@ -240,12 +241,14 @@ public class Servent {
         public void peerDisconnected(Peer peer) {
             System.out.printf("connection to %s closed%n", peer);
             connections.remove(peer);
-            knownPeers.remove(peer);
+            knownPeers.remove(peer.getID());
             openConnections();
         }
         
         public void peerResponded(Peer peer) {
-            peer.touch();
+            Peer realPeer = knownPeers.get(peer.getID());
+            if (realPeer != null)
+                realPeer.touch();
         }
         
         public void peersDiscovered(List<Peer> peers, Connection connection,
@@ -257,13 +260,14 @@ public class Servent {
                     continue;
                 }
                 
-                if (knownPeers.add(peer)) {
+                if (knownPeers.get(peer.getID()) == null) {
                     System.out.printf("discovered peer %s%n", peer);
+                    knownPeers.put(peer.getID(), peer);
                 }
             }
             
             if (!response) {
-                List<Peer> ourPeers = new LinkedList<Peer>(knownPeers);
+                List<Peer> ourPeers = new LinkedList<Peer>(knownPeers.values());
                 for (Peer theirPeer : peers) {
                     ourPeers.remove(theirPeer);
                 }
