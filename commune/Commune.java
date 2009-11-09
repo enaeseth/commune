@@ -203,8 +203,8 @@ public class Commune {
             long now = System.currentTimeMillis();
             
             for (Peer peer : peers) {
-                System.out.printf("  %s:%d; %s; %d seconds%n",
-                    peer.getHost(), peer.getPort(), peer.getUserAgent(),
+                System.out.printf("  %s:%d; 0x%016X; %d seconds%n",
+                    peer.getHost(), peer.getPort(), peer.getID(),
                     (now - peer.getLastContact()) / 1000);
             }
         }
