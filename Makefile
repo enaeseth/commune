@@ -16,6 +16,7 @@ CLASSES = \
 	commune/net/TimeoutTask.java \
 	commune/net/Operation.java \
 	commune/net/Reactor.java \
+	commune/peer/Peer.java \
 	commune/peer/Receiver.java \
 	commune/peer/MessageBroker.java \
 	commune/source/AvailableResource.java \
