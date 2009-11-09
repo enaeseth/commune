@@ -156,11 +156,9 @@ public class Commune {
     }
     
     private void discoverPeers() throws IOException {
-        List<Peer> peers = servent.getKnownPeers();
-        
         for (Connection connection : servent.getConnections()) {
             if (connection.getPeer().exchangesPeers()) {
-                connection.exchangePeers(peers);
+                connection.exchangePeers(servent.getKnownPeers(connection));
             }
         }
     }

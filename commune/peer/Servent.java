@@ -74,13 +74,20 @@ public class Servent {
     }
     
     public List<Peer> getKnownPeers() {
+        return getKnownPeers(null);
+    }
+    
+    public List<Peer> getKnownPeers(Connection exclude) {
         List<Peer> peerList;
         synchronized (knownPeers) {
             peerList = new ArrayList<Peer>(knownPeers.size());
             for (Peer peer : knownPeers) {
                 try {
-                    if (!peer.getAddress().getAddress().isLoopbackAddress())
-                        peerList.add(peer);
+                    if (peer.getAddress().getAddress().isLoopbackAddress())
+                        continue;
+                    if (exclude != null && connections.get(peer) == exclude)
+                        continue;
+                    peerList.add(peer);
                 } catch (UnknownHostException e) {
                     // ignore that peer
                 }
@@ -262,7 +269,7 @@ public class Servent {
             knownPeers.add(peer);
             
             if (isServer && peer.exchangesPeers()) {
-                connection.exchangePeers(getKnownPeers());
+                connection.exchangePeers(getKnownPeers(connection));
             }
         }
         
@@ -341,7 +348,7 @@ public class Servent {
                 }
 
                 if (oldest != null) {
-                    oldest.exchangePeers(getKnownPeers());
+                    oldest.exchangePeers(getKnownPeers(oldest));
                 }
                 
                 try {
