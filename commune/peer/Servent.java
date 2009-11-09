@@ -220,28 +220,28 @@ public class Servent {
             synchronized (connections) {
                 InetSocketAddress newRemote =
                     (InetSocketAddress) connection.getRemoteAddress();
-                for (Connection existing : connections.values()) {
-                    if (existing == connection)
-                        continue;
-                    if (newRemote.equals(existing.getRemoteAddress())) {
+                for (Map.Entry<Peer, Connection> e : connections.entrySet()) {
+                    Peer existingPeer = e.getKey();
+                    Connection existingCon = e.getValue();
+                    if (existingCon == connection) {
+                        if (existingPeer.getID() != peer.getID()) {
+                            connections.remove(existingPeer);
+                        } else {
+                            continue;
+                        }
+                    }
+                    
+                    if (newRemote.equals(existingCon.getRemoteAddress())) {
                         System.err.printf("duplicate connection to %s%n",
                             connection.describeAddress());
                         connection.close();
                         return;
                     }
                 }
-            }
-            
-            if (peer.getID() != 0 || peer.getUserAgent() != null) {
-                // replace any previous connection entry, as its peer probably
-                // doesn't have the user agent and/or peer ID populated
-                synchronized (connections) {
-                    connections.remove(peer);
-                    connections.put(peer, connection);
-                }
-            } else {
+                
                 connections.put(peer, connection);
             }
+            
             knownPeers.put(peer.getID(), peer);
             
             if (isServer && peer.exchangesPeers()) {

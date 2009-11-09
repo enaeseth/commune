@@ -189,14 +189,11 @@ public class Peer implements Comparable<Peer> {
     }
     
     public int hashCode() {
-        if (id != 0) {
-            try {
-                return getAddress().hashCode();
-            } catch (UnknownHostException e) {
-                return super.hashCode();
-            }
+        try {
+            return getAddress().hashCode();
+        } catch (UnknownHostException e) {
+            return super.hashCode();
         }
-        return (int) (id & 0xFFFFFFFF);
     }
     
     public String toString() {
