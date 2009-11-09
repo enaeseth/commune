@@ -3,7 +3,7 @@ package commune.protocol;
 import java.nio.ByteBuffer;
 
 public class PayloadMessage extends Message {
-    public static final short CODE = 0x21;
+    public static final short CODE = 0x12;
     public static final int OVERHEAD = 12;
     
     private int requestID;
