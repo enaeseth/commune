@@ -1,4 +1,4 @@
-package commune.peer.client;
+package commune.peer;
 
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;

@@ -19,6 +19,7 @@ public class Reactor implements Runnable {
     private Selector selector;
     private ScheduledExecutorService timeoutService;
     private Thread thread;
+    private transient boolean registering;
     
     /**
      * Creates a new reactor.
@@ -27,6 +28,7 @@ public class Reactor implements Runnable {
         selector = Selector.open();
         timeoutService = Executors.newScheduledThreadPool(1);
         thread = null;
+        registering = false;
     }
     
     /**
@@ -46,6 +48,13 @@ public class Reactor implements Runnable {
     public void run() {
         while (!Thread.interrupted()) {
             try {
+                while (registering) {
+                    try {
+                        Thread.sleep(100L);
+                    } catch (InterruptedException e) {
+                        return;
+                    }
+                }
                 selector.select();
             } catch (IOException e) {
                 System.err.println("=== error in select() ===");
@@ -63,7 +72,7 @@ public class Reactor implements Runnable {
                 try {
                     state.dispatch(key.readyOps());
                 } catch (IOException e) {
-                    if (!(e instanceof PortUnreachableException))
+                    if (isNotable(e))
                         System.err.println(e);
                     cancel(key.channel());
                     try {
@@ -72,6 +81,11 @@ public class Reactor implements Runnable {
                 }
             }
         }
+    }
+    
+    private boolean isNotable(IOException e) {
+        return !(e instanceof PortUnreachableException ||
+            e instanceof ClosedByInterruptException);
     }
     
     public boolean listen(SelectableChannel channel, Operation operation,
@@ -109,7 +123,15 @@ public class Reactor implements Runnable {
             if (key != null) {
                 key.interestOps(interestOps);
             } else {
-                channel.register(selector, interestOps, state);
+                synchronized (this) {
+                    registering = true;
+                    try {
+                        selector.wakeup();
+                        channel.register(selector, interestOps, state);
+                    } finally {
+                        registering = false;
+                    }
+                }
             }
             return true;
         } catch (CancelledKeyException e) {
@@ -171,7 +193,15 @@ public class Reactor implements Runnable {
         }
         
         try {
-            key.interestOps(interestOps);
+            synchronized (this) {
+                registering = true;
+                try {
+                    selector.wakeup();
+                    key.interestOps(interestOps);
+                } finally {
+                    registering = false;
+                }
+            }
             return true;
         } catch (CancelledKeyException e) {
             e.printStackTrace();

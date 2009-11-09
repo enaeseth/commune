@@ -5,6 +5,8 @@ import java.net.Inet6Address;
 import java.net.UnknownHostException;
 import java.net.InetSocketAddress;
 import java.util.Collections;
+import java.util.List;
+import java.util.LinkedList;
 import java.util.Set;
 import java.util.HashSet;
 import java.util.Random;
@@ -13,7 +15,7 @@ import java.util.regex.*;
 /**
  * A Commune peer.
  */
-public class Peer {
+public class Peer implements Comparable<Peer> {
     private static final Pattern ATTRIBUTE_SUFFIX =
         Pattern.compile("\\s+\\((.+)\\)$");
     private static final Pattern ATTRIBUTE_SEPARATOR =
@@ -36,12 +38,24 @@ public class Peer {
         this.userAgent = userAgent;
         this.lastContact = lastContact;
         
-        attributes = parseUserAgent();
+        attributes = new HashSet<String>();
+        if (userAgent != null)
+            parseUserAgent();
+    }
+    
+    public static Peer fromAddress(InetSocketAddress address) {
+        return fromAddress(address, null);
+    }
+    
+    public static Peer fromAddress(InetSocketAddress address, String userAgent)
+    {
+        InetAddress hostAddress = address.getAddress();
+        String hostname = hostAddress.getHostName();
+        
+        return new Peer(hostname, address.getPort(), userAgent);
     }
     
     private Set<String> parseUserAgent() {
-        attributes = new HashSet<String>();
-        
         Matcher matcher = ATTRIBUTE_SUFFIX.matcher(userAgent);
         if (matcher.find()) {
             String attributeString = matcher.group(1);
@@ -88,6 +102,21 @@ public class Peer {
             blessed = addresses[new Random().nextInt(addresses.length)];
         
         return new InetSocketAddress(blessed, port);
+    }
+    
+    public List<InetSocketAddress> getAddresses() {
+        List<InetSocketAddress> saddrs = new LinkedList<InetSocketAddress>();
+        try {
+            InetAddress[] addresses = InetAddress.getAllByName(hostname);
+            
+            for (InetAddress possible : addresses) {
+                saddrs.add(new InetSocketAddress(possible, getPort()));
+            }
+        } catch (UnknownHostException e) {
+            // ignore
+        }
+        
+        return saddrs;
     }
     
     /**
@@ -141,6 +170,10 @@ public class Peer {
         return hostname.equals(other.getHost()) && port == other.getPort();
     }
     
+    public int compareTo(Peer other) {
+        return (int) (lastContact - other.getLastContact());
+    }
+    
     public int hashCode() {
         try {
             return getAddress().hashCode();
@@ -150,7 +183,12 @@ public class Peer {
     }
     
     public String toString() {
-        return String.format("<%s:%d; %s>", hostname, port, userAgent);
+        StringBuilder builder = new StringBuilder();
+        builder.append(String.format("<%s:%d", hostname, port));
+        if (userAgent != null)
+            builder.append(String.format("; %s", userAgent));
+        builder.append(">");
+        return builder.toString();
     }
     
     public static void main(String... args) throws UnknownHostException {

@@ -25,13 +25,10 @@ CLASSES = \
 	commune/source/Source.java \
 	commune/source/DirectorySource.java \
 	commune/source/ResourceManager.java \
-	commune/peer/server/Server.java \
-	commune/peer/server/ClientConnection.java \
-	commune/peer/client/ServerConnection.java \
-	commune/peer/client/Client.java \
-	commune/peer/client/FutureTask.java \
-	commune/peer/client/ServerConnection.java \
-	commune/Servent.java
+	commune/peer/FutureTask.java \
+	commune/peer/Connection.java \
+	commune/peer/Servent.java \
+	commune/Commune.java
 
 default: classes
 
