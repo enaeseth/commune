@@ -218,7 +218,7 @@ public class Servent {
             boolean isServer)
         {
             synchronized (connections) {
-                InetSocketAddress newRemote =
+                InetSocketAddress remote =
                     (InetSocketAddress) connection.getRemoteAddress();
                 for (Map.Entry<Peer, Connection> e : connections.entrySet()) {
                     Peer existingPeer = e.getKey();
@@ -229,9 +229,7 @@ public class Servent {
                         } else {
                             continue;
                         }
-                    }
-                    
-                    if (newRemote.equals(existingCon.getRemoteAddress())) {
+                    } else if (remote.equals(existingCon.getRemoteAddress())) {
                         System.err.printf("duplicate connection to %s%n",
                             connection.describeAddress());
                         connection.close();
