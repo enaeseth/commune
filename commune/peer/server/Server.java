@@ -1,7 +1,7 @@
 package commune.peer.server;
 
 import commune.net.*;
-import commune.source.ResourceManager;
+import commune.source.Source;
 import commune.source.AvailableResource;
 import commune.protocol.*;
 
@@ -11,16 +11,16 @@ import java.net.InetSocketAddress;
 import java.nio.*;
 import java.nio.channels.*;
 
-public class Server {
+public class Server implements Source {
     private Reactor reactor;
-    private ResourceManager manager;
+    private Source source;
     private ServerSocketChannel serverChannel;
     
     public static final int DEFAULT_PORT = 2666;
     
-    public Server(Reactor reactor, ResourceManager manager) {
+    public Server(Reactor reactor, Source source) {
         this.reactor = reactor;
-        this.manager = manager;
+        this.source = source;
         
         serverChannel = null;
     }
@@ -37,7 +37,7 @@ public class Server {
     }
     
     public AvailableResource getResource(String path) {
-        return manager.getResource(path);
+        return source.getResource(path);
     }
     
     private class AcceptListener implements Listener {

@@ -10,7 +10,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  * Manages a collection of resource sources, allowing a resource to be
  * requested from any source by its path.
  */
-public class ResourceManager {
+public class ResourceManager implements Source {
     private List<Source> sources;
     private ReadWriteLock sourceLock;
     private Lock sourceReadLock;
