@@ -21,18 +21,21 @@ public class Peer implements Comparable<Peer> {
     private static final Pattern ATTRIBUTE_SEPARATOR =
         Pattern.compile(";\\s+");
     
+    private long id;
     private String hostname;
     private int port;
     private String userAgent;
     private long lastContact;
     private Set<String> attributes;
     
-    public Peer(String hostname, int port, String userAgent) {
-        this(hostname, port, userAgent, System.currentTimeMillis());
+    public Peer(long id, String hostname, int port, String userAgent) {
+        this(id, hostname, port, userAgent, System.currentTimeMillis());
     }
     
-    public Peer(String hostname, int port, String userAgent, long lastContact)
+    public Peer(long id, String hostname, int port, String userAgent,
+        long lastContact)
     {
+        this.id = id;
         this.hostname = hostname.toLowerCase();
         this.port = port;
         this.userAgent = userAgent;
@@ -44,17 +47,15 @@ public class Peer implements Comparable<Peer> {
     }
     
     public static Peer fromAddress(InetSocketAddress address) {
-        return fromAddress(address, null);
+        return fromAddress(address.getAddress(), address.getPort(), 0, null);
     }
     
-    public static Peer fromAddress(InetSocketAddress address, String userAgent)
+    public static Peer fromAddress(InetAddress address, int port, long id,
+        String userAgent)
     {
-        InetAddress hostAddress = address.getAddress();
-        if (hostAddress == null)
-            return null;
-        String hostname = hostAddress.getCanonicalHostName();
+        String hostname = address.getCanonicalHostName();
         
-        return new Peer(hostname, address.getPort(), userAgent);
+        return new Peer(id, hostname, port, userAgent);
     }
     
     private Set<String> parseUserAgent() {
@@ -66,6 +67,14 @@ public class Peer implements Comparable<Peer> {
         }
         
         return attributes;
+    }
+    
+    /**
+     * Returns the globally unique ID of this peer.
+     * @return globally unique ID of this peer
+     */
+    public long getID() {
+        return id;
     }
     
     /**
@@ -169,6 +178,9 @@ public class Peer implements Comparable<Peer> {
     }
     
     public boolean equals(Peer other) {
+        long otherID = other.getID();
+        if (id != 0 && otherID != 0)
+            return id == otherID;
         return hostname.equals(other.getHost()) && port == other.getPort();
     }
     
@@ -177,28 +189,24 @@ public class Peer implements Comparable<Peer> {
     }
     
     public int hashCode() {
-        try {
-            return getAddress().hashCode();
-        } catch (UnknownHostException e) {
-            return super.hashCode();
+        if (id != 0) {
+            try {
+                return getAddress().hashCode();
+            } catch (UnknownHostException e) {
+                return super.hashCode();
+            }
         }
+        return (int) (id & 0xFFFFFFFF);
     }
     
     public String toString() {
         StringBuilder builder = new StringBuilder();
         builder.append(String.format("<%s:%d", hostname, port));
+        if (id != 0)
+            builder.append(String.format("; 0x%016X", id));
         if (userAgent != null)
             builder.append(String.format("; %s", userAgent));
         builder.append(">");
         return builder.toString();
-    }
-    
-    public static void main(String... args) throws UnknownHostException {
-        Peer peer = new Peer("rabin.mathcs.carleton.edu", 2666,
-            "Commune Reference/0.5 (Search; PEX)");
-        System.out.println(peer);
-        System.out.println(peer.getAttributes());
-        System.out.println(peer.exchangesPeers());
-        System.out.println(peer.getAddress());
     }
 }

@@ -7,10 +7,16 @@ public class HelloMessage extends Message {
     
     private String agent;
     private boolean acknowledgement;
+    private long peerID;
+    private int listeningPort;
     
-    public HelloMessage(String agent, boolean acknowledgement) {
+    public HelloMessage(String agent, long peerID, int listeningPort,
+        boolean acknowledgement)
+    {
         super(CODE);
         this.agent = agent;
+        this.peerID = peerID;
+        this.listeningPort = listeningPort;
         this.acknowledgement = acknowledgement;
     }
     
@@ -20,6 +26,22 @@ public class HelloMessage extends Message {
      */
     public String getUserAgent() {
         return agent;
+    }
+    
+    /**
+     * Returns the unique ID of this peer.
+     * @return unique ID of this peer
+     */
+    public long getPeerID() {
+        return peerID;
+    }
+    
+    /**
+     * Returns the port on which this peer is listening.
+     * @return port on which this peer is listening
+     */
+    public int getListeningPort() {
+        return listeningPort;
     }
     
     /**
@@ -33,7 +55,8 @@ public class HelloMessage extends Message {
     }
     
     public ByteBuffer getBytes() {
-        return formatMessage(isAcknowledgement(), getUserAgent());
+        return formatMessage(isAcknowledgement(), getPeerID(),
+            getListeningPort(), getUserAgent());
     }
     
     static {
@@ -42,14 +65,13 @@ public class HelloMessage extends Message {
                 throws InvalidMessageException
             {
                 boolean acknowledgement = (buf.get() != (byte) 0);
+                long peerID = buf.getLong();
+                int listeningPort = buf.getInt();
                 String agent = readString(buf);
                 
-                return new HelloMessage(agent, acknowledgement);
+                return new HelloMessage(agent, peerID, listeningPort,
+                    acknowledgement);
             }
         });
-    }
-    
-    public static void main(String... args) {
-        System.out.println(new HelloMessage("Reference/0.3", false).getBytes());
     }
 }

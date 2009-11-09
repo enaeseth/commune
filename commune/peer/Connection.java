@@ -24,6 +24,8 @@ public class Connection {
     private Source source;
     private PeerListener listener;
     private File storageFolder;
+    private long localID;
+    private int listeningPort;
     private SocketChannel channel;
     private MessageBroker broker;
     private Peer peer;
@@ -33,12 +35,15 @@ public class Connection {
     private Queue<Request> pendingRequests;
     
     public Connection(Reactor reactor, SocketChannel channel, Source source,
-        PeerListener listener, File storageFolder) throws IOException
+        PeerListener listener, File storageFolder, long localID,
+        int listeningPort) throws IOException
     {
         this.channel = channel;
         this.source = source;
         this.listener = listener;
         this.storageFolder = storageFolder;
+        this.localID = localID;
+        this.listeningPort = listeningPort;
         
         peer = Peer.fromAddress((InetSocketAddress) getRemoteAddress());
         helloReceived = false;
@@ -56,7 +61,8 @@ public class Connection {
      */
     public void sendHello() {
         System.out.printf("sending hello to %s%n", describeAddress());
-        broker.send(new HelloMessage(USER_AGENT, false));
+        broker.send(new HelloMessage(USER_AGENT, localID, listeningPort,
+            false));
     }
     
     /**
@@ -211,14 +217,16 @@ public class Connection {
             
             if (!message.isAcknowledgement()) {
                 // Send a reply.
-                broker.send(new HelloMessage(USER_AGENT, true));
+                broker.send(new HelloMessage(USER_AGENT, localID,
+                    listeningPort, true));
             }
             if (!helloReceived) {
                 helloReceived = true;
                 
-                InetSocketAddress remote =
-                    (InetSocketAddress) getRemoteAddress();
-                peer = Peer.fromAddress(remote, message.getUserAgent());
+                InetAddress remote =
+                    ((InetSocketAddress) getRemoteAddress()).getAddress();
+                peer = Peer.fromAddress(remote, message.getListeningPort(),
+                    message.getPeerID(), message.getUserAgent());
                 listener.peerConnected(peer, Connection.this,
                     !message.isAcknowledgement());
             }

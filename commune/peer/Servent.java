@@ -17,6 +17,7 @@ import java.util.concurrent.Future;
  * A servent: a client and server rolled into one.
  */
 public class Servent {
+    private long localID;
     private Reactor reactor;
     private Source source;
     private File storageFolder;
@@ -38,6 +39,9 @@ public class Servent {
         this.storageFolder = storageFolder;
         this.connectionLimit = connectionLimit;
         
+        entropy = new Random();
+        localID = entropy.nextLong();
+        
         connections = Collections.synchronizedMap(
             new HashMap<Peer, Connection>());
         knownPeers = Collections.synchronizedSet(new HashSet<Peer>());
@@ -46,8 +50,15 @@ public class Servent {
         
         serverChannel = null;
         
-        entropy = new Random();
         new KeepAliveThread().start();
+    }
+    
+    /**
+     * Returns the unique ID of the local peer.
+     * @return unique ID of the local peer
+     */
+    public long getLocalID() {
+        return localID;
     }
     
     /**
@@ -179,7 +190,7 @@ public class Servent {
         channel.connect(peer.getAddress());
         channel.configureBlocking(false);
         connection = new Connection(reactor, channel, source, updater,
-            storageFolder);
+            storageFolder, localID, localAddress.getPort());
         connections.put(peer, connection);
         connection.sendHello();
         return connection;
@@ -191,57 +202,10 @@ public class Servent {
             client.configureBlocking(false);
             
             Connection con = new Connection(reactor, client, source,
-                updater, storageFolder);
+                updater, storageFolder, localID, localAddress.getPort());
             System.out.printf("got new connection from %s%n",
                 con.describeAddress());
         }
-    }
-    
-    /**
-     * Checks to see if the given 'peer' (found through discovery) is really
-     * us.
-     */
-    private boolean isSelf(Peer peer) {
-        try {
-            List<InetSocketAddress> peerAddresses = peer.getAddresses();
-            InetAddress myHost = localAddress.getAddress();
-            NetworkInterface iface;
-        
-            if (myHost.isAnyLocalAddress()) {
-                Enumeration<NetworkInterface> interfaces =
-                    NetworkInterface.getNetworkInterfaces();
-            
-                while (interfaces.hasMoreElements()) {
-                    iface = interfaces.nextElement();
-                    if (isSelf(peerAddresses, iface))
-                        return true;
-                }
-            } else {
-                iface = NetworkInterface.getByInetAddress(myHost);
-                if (iface != null)
-                    return isSelf(peerAddresses, iface);
-            }
-        } catch (SocketException e) {
-            // ignore
-        }
-        
-        return false;
-    }
-    
-    private boolean isSelf(List<InetSocketAddress> peerAddresses,
-        NetworkInterface iface) throws SocketException
-    {
-        Enumeration<InetAddress> ifAddresses =
-            iface.getInetAddresses();
-        while (ifAddresses.hasMoreElements()) {
-            InetSocketAddress full = new InetSocketAddress(
-                ifAddresses.nextElement(), localAddress.getPort());
-            for (InetSocketAddress possible : peerAddresses) {
-                if (full.equals(possible))
-                    return true;
-            }
-        }
-        return false;
     }
     
     private class PeerUpdater implements PeerListener {
@@ -256,9 +220,9 @@ public class Servent {
                 return;
             }
             
-            if (peer.getUserAgent() != null) {
+            if (peer.getID() != 0 || peer.getUserAgent() != null) {
                 // replace any previous connection entry, as its peer probably
-                // doesn't have the user agent populated
+                // doesn't have the user agent and/or peer ID populated
                 synchronized (connections) {
                     connections.remove(peer);
                     connections.put(peer, connection);
@@ -288,7 +252,7 @@ public class Servent {
             boolean response)
         {
             for (Peer peer : peers) {
-                if (isSelf(peer)) {
+                if (peer.getID() == localID) {
                     // don't add ourselves as a known peer
                     continue;
                 }
