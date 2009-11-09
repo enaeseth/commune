@@ -50,6 +50,6 @@ public class HelloMessage extends Message {
     }
     
     public static void main(String... args) {
-        System.out.println(new HelloMessage("Reference/0.2", false).getBytes());
+        System.out.println(new HelloMessage("Reference/0.3", false).getBytes());
     }
 }
