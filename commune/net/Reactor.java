@@ -7,23 +7,42 @@ import java.nio.channels.*;
 import java.util.*;
 import java.util.concurrent.*;
 
+/**
+ * A reactor forms the heart of Commune's networking infrastructure.
+ * 
+ * Reactor provides a higher-level interface to Selector. Applications ask the
+ * Reactor to "listen" for one or more events on a socket and to call a method
+ * on an object when that event happens. The events are defined in the
+ * Operation class.
+ */
 public class Reactor implements Runnable {
     private Selector selector;
     private ScheduledExecutorService timeoutService;
     private Thread thread;
     
+    /**
+     * Creates a new reactor.
+     */
     public Reactor() throws IOException {
         selector = Selector.open();
         timeoutService = Executors.newScheduledThreadPool(1);
         thread = null;
     }
     
+    /**
+     * Starts the reactor on a new dedicated thread.
+     * @return the created thread
+     */
     public Thread start() {
         thread = new Thread(this, "Reactor");
         thread.start();
         return thread;
     }
     
+    /**
+     * Runs the reactor. This method will not return until the reactor thread
+     * is interrupted.
+     */
     public void run() {
         while (!Thread.interrupted()) {
             try {
