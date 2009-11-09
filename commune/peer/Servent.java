@@ -150,7 +150,10 @@ public class Servent {
     public Connection getConnection(InetSocketAddress address)
         throws IOException
     {
-        return getConnection(Peer.fromAddress(address));
+        Peer peer = Peer.fromAddress(address);
+        if (peer == null)
+            throw new UnknownHostException(address.getHostName());
+        return getConnection(peer);
     }
     
     public Connection getConnection(Peer peer) throws IOException {
