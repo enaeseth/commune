@@ -213,12 +213,19 @@ public class Servent {
         public void peerConnected(Peer peer, Connection connection,
             boolean isServer)
         {
-            Connection existing = connections.get(peer);
-            if (existing != null && existing != connection) {
-                System.err.printf("duplicate connection to %s%n",
-                    connection.describeAddress());
-                connection.close();
-                return;
+            synchronized (connections) {
+                InetSocketAddress newRemote =
+                    (InetSocketAddress) connection.getRemoteAddress();
+                for (Connection existing : connections.values()) {
+                    if (existing == connection)
+                        continue;
+                    if (newRemote.equals(existing.getRemoteAddress())) {
+                        System.err.printf("duplicate connection to %s%n",
+                            connection.describeAddress());
+                        connection.close();
+                        return;
+                    }
+                }
             }
             
             if (peer.getID() != 0 || peer.getUserAgent() != null) {
@@ -293,34 +300,52 @@ public class Servent {
     }
     
     private class KeepAliveThread extends Thread {
+        private Queue<Connection> queue;
+        private int count;
+        
         public KeepAliveThread() {
             super("KeepAlive");
             setDaemon(true);
+            queue = new LinkedList<Connection>();
+            count = 0;
+        }
+        
+        private void fill() {
+            synchronized (connections) {
+                count = 0;
+                for (Connection con : connections.values()) {
+                    if (con.isConnected()) {
+                        queue.offer(con);
+                        count++;
+                    } else {
+                        updater.peerDisconnected(con.getPeer());
+                    }
+                }
+            }
         }
         
         public void run() {
             while (!Thread.interrupted()) {
-                Connection oldest = null;
-                long lastContact = 0;
-
-                for (Connection con : getConnections()) {
-                    if (!con.isConnected()) {
-                        updater.peerDisconnected(con.getPeer());
-                        continue;
-                    }
-                    long c = con.getLastContact();
-                    if (c > lastContact) {
-                        lastContact = c;
-                        oldest = con;
-                    }
+                Connection next = queue.poll();
+                if (next == null) {
+                    fill();
+                    next = queue.poll();
                 }
-
-                if (oldest != null) {
-                    oldest.exchangePeers(getKnownPeers(oldest));
+                
+                if (next != null) {
+                    if (!next.isConnected()) {
+                        updater.peerDisconnected(next.getPeer());
+                        continue;
+                    } else {
+                        next.exchangePeers(getKnownPeers(next));
+                    }
+                } else {
+                    // no active connections
+                    count = 1;
                 }
                 
                 try {
-                    Thread.sleep(10000 + 1000 * entropy.nextInt(20));
+                    Thread.sleep((10000 + 1000 * entropy.nextInt(15)) / count);
                 } catch (InterruptedException e) {
                     return;
                 }
