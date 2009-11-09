@@ -1,2 +1,2 @@
 #!/bin/sh
-java commune.Servent $@
+java commune.Commune $@
