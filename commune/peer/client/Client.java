@@ -45,7 +45,7 @@ public class Client {
     public static void main(String... args) throws IOException {
         Reactor reactor = new Reactor();
         Client client = new Client(reactor, new File("Downloads"));
-        client.request(args[0], Integer.parseInt(args[1]), null);
+        client.request(args[0], Integer.parseInt(args[1]), args[2]);
         reactor.run();
     }
 }

@@ -1,8 +1,9 @@
 package commune.peer.server;
 
 import commune.net.*;
-import commune.source.Source;
 import commune.source.AvailableResource;
+import commune.source.Source;
+import commune.source.DirectorySource;
 import commune.protocol.*;
 
 import java.io.IOException;
@@ -53,7 +54,8 @@ public class Server implements Source {
     
     public static void main(String... args) throws IOException {
         Reactor reactor = new Reactor();
-        Server server = new Server(reactor, null);
+        Server server = new Server(reactor,
+            new DirectorySource("/", new java.io.File(args[0])));
         server.listen(DEFAULT_PORT);
         reactor.run();
     }
