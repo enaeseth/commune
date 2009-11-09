@@ -200,6 +200,10 @@ public class Connection {
                 System.err.println();
             }
             
+            Request pending;
+            while ((pending = pendingRequests.poll()) != null)
+                pending.send();
+            
             if (!message.isAcknowledgement()) {
                 // Send a reply.
                 broker.send(new HelloMessage(USER_AGENT, true));
