@@ -171,7 +171,7 @@ public class Peer implements Comparable<Peer> {
     }
     
     public int compareTo(Peer other) {
-        return (int) (lastContact - other.getLastContact());
+        return (int) (other.getLastContact() - lastContact);
     }
     
     public int hashCode() {
