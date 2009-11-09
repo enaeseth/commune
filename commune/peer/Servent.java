@@ -259,8 +259,7 @@ public class Servent {
             } else {
                 connections.put(peer, connection);
             }
-            if (!isServer)
-                knownPeers.add(peer);
+            knownPeers.add(peer);
             
             if (isServer && peer.exchangesPeers()) {
                 connection.exchangePeers(getKnownPeers());
