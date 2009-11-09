@@ -104,7 +104,7 @@ public class Reactor implements Runnable {
     }
     
     private void closed(SelectionKey key) {
-        closed(key.channel(), key.attachment());
+        closed(key.channel(), ((State) key.attachment()).getAttachment());
     }
     
     private boolean isNotable(IOException e) {
