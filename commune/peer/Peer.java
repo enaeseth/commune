@@ -134,6 +134,14 @@ public class Peer {
         return hostname.equals(other.getHost()) && port == other.getPort();
     }
     
+    public int hashCode() {
+        try {
+            return getAddress().hashCode();
+        } catch (UnknownHostException e) {
+            return super.hashCode();
+        }
+    }
+    
     public String toString() {
         return String.format("<%s:%d; %s>", hostname, port, userAgent);
     }
