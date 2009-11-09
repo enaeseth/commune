@@ -50,7 +50,7 @@ public class Peer implements Comparable<Peer> {
     public static Peer fromAddress(InetSocketAddress address, String userAgent)
     {
         InetAddress hostAddress = address.getAddress();
-        String hostname = hostAddress.getHostName();
+        String hostname = hostAddress.getCanonicalHostName();
         
         return new Peer(hostname, address.getPort(), userAgent);
     }

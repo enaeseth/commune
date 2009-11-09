@@ -98,7 +98,7 @@ public class Connection {
             listener.peerDisconnected(peer);
             return null;
         }
-        String host = addr.getHostName();
+        String host = addr.getAddress().getCanonicalHostName();
         
         return (host.contains(":"))
             ? String.format("[%s]:%d", host, addr.getPort()) // IPv6 literal
