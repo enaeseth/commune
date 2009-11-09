@@ -101,11 +101,13 @@ public class MessageBroker {
             
             overallBuffer = ByteBuffer.allocate(length);
             overallBuffer.put(headerBuffer);
+            headerBuffer.clear();
         }
         
         private void processMessage() {
             try {
                 Message message = Message.parseMessage(overallBuffer);
+                overallBuffer = null;
                 try {
                     Receiver<Message> r = receivers.get(message.getType());
                     if (r != null) {

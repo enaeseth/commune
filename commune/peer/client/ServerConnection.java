@@ -71,6 +71,8 @@ public class ServerConnection {
     }
     
     public void sendHello() {
+        System.out.printf("[client] sending hello to %s%n",
+            getRemoteAddress());
         broker.send(new HelloMessage("Commune Reference/0.3", false));
     }
     
@@ -230,6 +232,11 @@ public class ServerConnection {
                 outputAccess.close();
                 task.set(outputFile);
             }
+        }
+        
+        public String toString() {
+            return String.format("<Request for %s from %s (%d)>",
+                getPath(), getRemoteAddress(), getID());
         }
     }
 }
