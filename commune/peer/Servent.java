@@ -25,6 +25,7 @@ public class Servent {
     private ServerSocketChannel serverChannel;
     private InetSocketAddress localAddress;
     private PeerListener updater;
+    private Random entropy;
     
     public static final int DEFAULT_PORT = 2666;
     
@@ -42,6 +43,9 @@ public class Servent {
         knownPeers = Collections.synchronizedSet(new HashSet<Peer>());
         
         serverChannel = null;
+        
+        entropy = new Random();
+        new KeepAliveThread().start();
     }
     
     /**
@@ -292,6 +296,42 @@ public class Servent {
                 connection.exchangePeers(ourPeers, true);
             }
             openConnections();
+        }
+    }
+    
+    private class KeepAliveThread extends Thread {
+        public KeepAliveThread() {
+            super("KeepAlive");
+            setDaemon(true);
+        }
+        
+        public void run() {
+            while (!Thread.interrupted()) {
+                Connection oldest = null;
+                long lastContact = 0;
+
+                for (Connection con : getConnections()) {
+                    if (!con.isConnected()) {
+                        updater.peerDisconnected(con.getPeer());
+                        continue;
+                    }
+                    long c = con.getLastContact();
+                    if (c > lastContact) {
+                        lastContact = c;
+                        oldest = con;
+                    }
+                }
+
+                if (oldest != null) {
+                    oldest.exchangePeers(getKnownPeers());
+                }
+                
+                try {
+                    Thread.sleep(10000 + 1000 * entropy.nextInt(20));
+                } catch (InterruptedException e) {
+                    return;
+                }
+            }
         }
     }
     

@@ -94,6 +94,10 @@ public class Connection {
      */
     public String describeAddress() {
         InetSocketAddress addr = (InetSocketAddress) getRemoteAddress();
+        if (addr == null) {
+            listener.peerDisconnected(peer);
+            return null;
+        }
         String host = addr.getHostName();
         
         return (host.contains(":"))
