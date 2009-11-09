@@ -5,6 +5,7 @@ JC = javac
 	$(JC) $*.java
 
 CLASSES = \
+	commune/peer/Peer.java \
 	commune/protocol/InvalidMessageException.java \
 	commune/protocol/MessageParser.java \
 	commune/protocol/Message.java \
@@ -12,11 +13,11 @@ CLASSES = \
 	commune/protocol/RequestMessage.java \
 	commune/protocol/ResponseMessage.java \
 	commune/protocol/PayloadMessage.java \
+	commune/protocol/PeerExchangeMessage.java \
 	commune/net/Listener.java \
 	commune/net/TimeoutTask.java \
 	commune/net/Operation.java \
 	commune/net/Reactor.java \
-	commune/peer/Peer.java \
 	commune/peer/Receiver.java \
 	commune/peer/MessageBroker.java \
 	commune/source/AvailableResource.java \
