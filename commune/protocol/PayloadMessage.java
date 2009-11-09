@@ -6,23 +6,23 @@ public class PayloadMessage extends Message {
     public static final short CODE = 0x21;
     public static final int OVERHEAD = 12;
     
-    private int transferID;
+    private int requestID;
     private long offset;
     private byte[] body;
     
-    public PayloadMessage(int transferID, long offset, byte[] body) {
+    public PayloadMessage(int requestID, long offset, byte[] body) {
         super(CODE);
-        this.transferID = transferID;
+        this.requestID = requestID;
         this.offset = offset;
         this.body = body;
     }
     
     /**
-     * Returns the key that the client will use to identify payload packets.
-     * @return key that the client will use to identify payload packets
+     * Returns the ID of the request that generated this payload message.
+     * @return ID of the request that generated this payload message
      */
-    public int getTransferID() {
-        return transferID;
+    public int getRequestID() {
+        return requestID;
     }
     
     /**
@@ -42,7 +42,7 @@ public class PayloadMessage extends Message {
     }
     
     public ByteBuffer getBytes() {
-        return formatMessage(getTransferID(), getOffset(),
+        return formatMessage(getRequestID(), getOffset(),
             ByteBuffer.wrap(body));
     }
     
@@ -68,7 +68,7 @@ public class PayloadMessage extends Message {
         StringBuilder builder = new StringBuilder();
         
         builder.append(String.format("[payload id=%d, offset=%d: {",
-            getTransferID(), getOffset()));
+            getRequestID(), getOffset()));
         
         boolean first = true;
         for (byte b : getBody()) {

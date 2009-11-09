@@ -1,7 +1,6 @@
 package commune.peer.client;
 
-import commune.peer.Reactor;
-import commune.peer.ChannelListener;
+import commune.net.Reactor;
 import commune.protocol.*;
 
 import java.io.File;
@@ -31,14 +30,22 @@ public class Client {
         InetSocketAddress address = new InetSocketAddress(hostAddress, port);
         
         ServerConnection con = connections.get(address);
-        if (con == null || !((SocketChannel) con.getChannel()).isConnected()) {
+        if (con == null || !con.isConnected()) {
             SocketChannel channel = SocketChannel.open();
             channel.connect(address);
             channel.configureBlocking(false);
             
             con = new ServerConnection(reactor, channel, storage);
+            connections.put(address, con);
         }
         
         return con.request(path);
+    }
+    
+    public static void main(String... args) throws IOException {
+        Reactor reactor = new Reactor();
+        Client client = new Client(reactor, new File("Downloads"));
+        client.request(args[0], Integer.parseInt(args[1]), null);
+        reactor.run();
     }
 }

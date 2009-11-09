@@ -1,7 +1,6 @@
 package commune.peer.server;
 
-import commune.peer.Reactor;
-import commune.peer.ChannelListener;
+import commune.net.*;
 import commune.peer.source.ResourceManager;
 import commune.peer.source.AvailableResource;
 import commune.protocol.*;
@@ -32,26 +31,30 @@ public class Server {
         ServerSocket socket = serverChannel.socket();
         socket.bind(new InetSocketAddress(port));
         serverChannel.configureBlocking(false);
+        System.out.printf("[server] listening on port %d%n", port);
         
-        reactor.register(serverChannel, SelectionKey.OP_ACCEPT,
-            new AcceptListener());
+        reactor.listen(serverChannel, Operation.ACCEPT, new AcceptListener());
     }
     
     public AvailableResource getResource(String path) {
         return manager.getResource(path);
     }
     
-    private class AcceptListener implements ChannelListener {
-        public void ready(SelectableChannel channel, int operations)
-            throws IOException
-        {
-            ServerSocketChannel server = (ServerSocketChannel) channel;
-            SocketChannel client = server.accept();
+    private class AcceptListener implements Listener {
+        public void ready(SelectableChannel channel) throws IOException {
+            SocketChannel client = serverChannel.accept();
             client.configureBlocking(false);
             System.out.printf("[server] got connection from %s%n",
                 client.socket().getRemoteSocketAddress());
             
             new ClientConnection(Server.this, reactor, client);
         }
+    }
+    
+    public static void main(String... args) throws IOException {
+        Reactor reactor = new Reactor();
+        Server server = new Server(reactor, null);
+        server.listen(DEFAULT_PORT);
+        reactor.run();
     }
 }

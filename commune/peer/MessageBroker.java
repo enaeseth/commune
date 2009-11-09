@@ -36,6 +36,7 @@ public class MessageBroker {
         short code;
         
         try {
+            // Use reflection to get the message code.
             Field field = type.getDeclaredField("CODE");
             code = (Short) field.get(null);
         } catch (Exception e) {

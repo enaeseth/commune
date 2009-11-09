@@ -6,7 +6,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.*;
 
-public class FutureTask<V> implements Future<V> {
+class FutureTask<V> implements Future<V> {
     private V value;
     private boolean set;
     private Throwable error;
