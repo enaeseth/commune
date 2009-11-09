@@ -36,5 +36,4 @@ classes: $(CLASSES:.java=.class)
 
 clean:
 	$(RM) commune/*.class commune/protocol/*.class commune/peer/*.class \
-		commune/peer/client/*.class commune/peer/server/*.class \
-		commune/source/*.class
+		commune/net/*.class commune/source/*.class
