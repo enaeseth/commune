@@ -10,15 +10,14 @@ public class ResponseMessage extends Message {
     private String statusDescription;
     private long fileLength;
     private String contentType;
-    private int serverID;
     
     public ResponseMessage(int id, short statusCode, String statusDescription)
     {
-        this(id, statusCode, statusDescription, 0L, "", 0);
+        this(id, statusCode, statusDescription, 0L, "");
     }
     
     public ResponseMessage(int id, short statusCode, String statusDescription,
-        long fileLength, String contentType, int serverID)
+        long fileLength, String contentType)
     {
         super(CODE);
         this.id = id;
@@ -26,14 +25,13 @@ public class ResponseMessage extends Message {
         this.statusDescription = statusDescription;
         this.fileLength = fileLength;
         this.contentType = contentType;
-        this.serverID = serverID;
     }
     
     /**
      * Returns the client's identifier for this request.
      * @return client's identifier for this request
      */
-    public int getClientID() {
+    public int getID() {
         return id;
     }
     
@@ -69,18 +67,9 @@ public class ResponseMessage extends Message {
         return contentType;
     }
     
-    /**
-     * Returns the server's identifier for this request.
-     * @return server's identifier for this request
-     */
-    public int getServerID() {
-        return serverID;
-    }
-    
     public ByteBuffer getBytes() {
-        return formatMessage(getClientID(), getStatusCode(),
-            getStatusDescription(), getFileLength(), getContentType(),
-            getServerID());
+        return formatMessage(getID(), getStatusCode(),
+            getStatusDescription(), getFileLength(), getContentType());
     }
     
     static {
@@ -93,10 +82,9 @@ public class ResponseMessage extends Message {
                 String statusDescription = readString(buf);
                 long fileLength = buf.getLong();
                 String contentType = readString(buf);
-                int serverID = buf.getInt();
                 
                 return new ResponseMessage(clientID, statusCode,
-                    statusDescription, fileLength, contentType, serverID);
+                    statusDescription, fileLength, contentType);
             }
         });
     }
