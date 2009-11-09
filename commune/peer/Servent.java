@@ -3,6 +3,7 @@ package commune.peer;
 import commune.net.Reactor;
 import commune.net.Listener;
 import commune.net.Operation;
+import commune.net.CloseListener;
 import commune.source.*;
 
 import java.io.*;
@@ -37,10 +38,11 @@ public class Servent {
         this.storageFolder = storageFolder;
         this.connectionLimit = connectionLimit;
         
-        updater = new PeerUpdater();
         connections = Collections.synchronizedMap(
             new HashMap<Peer, Connection>());
         knownPeers = Collections.synchronizedSet(new HashSet<Peer>());
+        updater = new PeerUpdater();
+        reactor.addCloseListener(new Disconnecter());
         
         serverChannel = null;
         
@@ -299,6 +301,20 @@ public class Servent {
                 connection.exchangePeers(ourPeers, true);
             }
             openConnections();
+        }
+    }
+    
+    private class Disconnecter implements CloseListener {
+        public void channelClosed(SelectableChannel channel, Object attachment)
+        {
+            try {
+                Connection con = (Connection) attachment;
+                updater.peerDisconnected(con.getPeer());
+            } catch (ClassCastException e) {
+                System.err.println(e);
+            } catch (NullPointerException e) {
+                System.err.println(e);
+            }
         }
     }
     
