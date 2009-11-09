@@ -1,8 +1,8 @@
 package commune.peer.server;
 
 import commune.net.*;
-import commune.peer.source.ResourceManager;
-import commune.peer.source.AvailableResource;
+import commune.source.ResourceManager;
+import commune.source.AvailableResource;
 import commune.protocol.*;
 
 import java.io.IOException;

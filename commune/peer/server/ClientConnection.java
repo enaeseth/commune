@@ -5,7 +5,7 @@ import commune.peer.MessageBroker;
 import commune.peer.MessageSource;
 import commune.peer.Receiver;
 import commune.protocol.*;
-import commune.peer.source.AvailableResource;
+import commune.source.AvailableResource;
 
 import java.io.*;
 import java.net.*;

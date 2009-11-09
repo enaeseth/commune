@@ -1,4 +1,4 @@
-package commune.peer.source;
+package commune.source;
 
 import java.nio.ByteBuffer;
 import java.io.IOException;

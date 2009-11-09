@@ -18,11 +18,11 @@ CLASSES = \
 	commune/net/Reactor.java \
 	commune/peer/Receiver.java \
 	commune/peer/MessageBroker.java \
-	commune/peer/source/AvailableResource.java \
-	commune/peer/source/AvailableFile.java \
-	commune/peer/source/Source.java \
-	commune/peer/source/DirectorySource.java \
-	commune/peer/source/ResourceManager.java \
+	commune/source/AvailableResource.java \
+	commune/source/AvailableFile.java \
+	commune/source/Source.java \
+	commune/source/DirectorySource.java \
+	commune/source/ResourceManager.java \
 	commune/peer/server/Server.java \
 	commune/peer/server/ClientConnection.java \
 	commune/peer/client/ServerConnection.java \
@@ -38,4 +38,4 @@ classes: $(CLASSES:.java=.class)
 clean:
 	$(RM) commune/*.class commune/protocol/*.class commune/peer/*.class \
 		commune/peer/client/*.class commune/peer/server/*.class \
-		commune/peer/source/*.class
+		commune/source/*.class

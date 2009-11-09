@@ -3,8 +3,8 @@ package commune;
 import commune.peer.Reactor;
 import commune.peer.client.Client;
 import commune.peer.server.Server;
-import commune.peer.source.ResourceManager;
-import commune.peer.source.DirectorySource;
+import commune.source.ResourceManager;
+import commune.source.DirectorySource;
 
 import java.io.File;
 import java.io.IOException;
@@ -56,9 +56,8 @@ public class Servent implements Runnable {
         
         try {
             server.listen(serverPort);
-            System.out.printf("Listening on port %d.%n", serverPort);
         } catch (IOException e) {
-            System.err.printf("failed to listen on port %d: %s%n",
+            System.err.printf("[server] failed to listen on port %d: %s%n",
                 serverPort, e);
             System.exit(1);
         }
