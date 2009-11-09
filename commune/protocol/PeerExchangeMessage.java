@@ -57,6 +57,7 @@ public class PeerExchangeMessage extends Message {
             try {
                 InetSocketAddress address = peer.getAddress();
                 String host = address.getAddress().getHostName();
+                peerBuffer.putLong(peer.getID());
                 writeString(peerBuffer, host);
                 peerBuffer.putInt(address.getPort());
                 writeString(peerBuffer, peer.getUserAgent());
@@ -89,12 +90,14 @@ public class PeerExchangeMessage extends Message {
                 List<Peer> peers = new ArrayList<Peer>(count);
                 
                 for (int i = 0; i < count; i++) {
+                    long id = buf.getLong();
                     String hostname = readString(buf);
                     int port = buf.getInt();
                     String userAgent = readString(buf);
                     long age = buf.getLong();
                     
-                    peers.add(new Peer(hostname, port, userAgent, now - age));
+                    peers.add(new Peer(id, hostname, port, userAgent,
+                        now - age));
                 }
                 
                 return new PeerExchangeMessage(peers, response);
