@@ -63,8 +63,8 @@ public class MessageBroker {
         return this;
     }
     
-    public void cancel() {
-        reactor.cancel(channel);
+    public void cancel(boolean closing) {
+        reactor.cancel(channel, closing);
     }
     
     private class MessageReader implements Listener {

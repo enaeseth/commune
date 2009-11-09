@@ -48,6 +48,7 @@ public class Connection {
         
         broker = new MessageBroker(reactor, channel);
         configureBroker();
+        reactor.attach(channel, this);
     }
     
     /**
@@ -118,7 +119,7 @@ public class Connection {
      * while closing the socket channel are silently ignored.
      */
     public void close() {
-        broker.cancel();
+        broker.cancel(true);
         try {
             channel.close();
         } catch (IOException e) {

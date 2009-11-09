@@ -20,6 +20,7 @@ public class Reactor implements Runnable {
     private ScheduledExecutorService timeoutService;
     private Thread thread;
     private transient boolean registering;
+    private Set<CloseListener> closeListeners;
     
     /**
      * Creates a new reactor.
@@ -29,6 +30,8 @@ public class Reactor implements Runnable {
         timeoutService = Executors.newScheduledThreadPool(1);
         thread = null;
         registering = false;
+        closeListeners =
+            Collections.synchronizedSet(new HashSet<CloseListener>());
     }
     
     /**
@@ -39,6 +42,14 @@ public class Reactor implements Runnable {
         thread = new Thread(this, "Reactor");
         thread.start();
         return thread;
+    }
+    
+    public boolean addCloseListener(CloseListener listener) {
+        return closeListeners.add(listener);
+    }
+    
+    public boolean removeCloseListener(CloseListener listener) {
+        return closeListeners.remove(listener);
     }
     
     /**
@@ -74,6 +85,7 @@ public class Reactor implements Runnable {
                 } catch (IOException e) {
                     if (isNotable(e))
                         System.err.println(e);
+                    closed(key);
                     cancel(key.channel());
                     try {
                         key.channel().close();
@@ -81,6 +93,18 @@ public class Reactor implements Runnable {
                 }
             }
         }
+    }
+    
+    private void closed(SelectableChannel channel, Object attachment) {
+        synchronized (closeListeners) {
+            for (CloseListener listener : closeListeners) {
+                listener.channelClosed(channel, attachment);
+            }
+        }
+    }
+    
+    private void closed(SelectionKey key) {
+        closed(key.channel(), key.attachment());
     }
     
     private boolean isNotable(IOException e) {
@@ -229,10 +253,16 @@ public class Reactor implements Runnable {
     }
     
     public void cancel(SelectableChannel channel) {
+        cancel(channel, false);
+    }
+    
+    public void cancel(SelectableChannel channel, boolean closing) {
         SelectionKey key = channel.keyFor(selector);
         
         if (key == null)
             return;
+        if (closing)
+            closed(key);
         
         ((State) key.attachment()).clearTimeouts();
         key.cancel();
