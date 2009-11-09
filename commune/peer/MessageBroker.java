@@ -14,6 +14,7 @@ public class MessageBroker {
     private Reactor reactor;
     private SocketChannel channel;
     private Queue<Message> outgoing;
+    private Queue<MessageSource> sources;
     private Map<Short, Receiver<Message>> receivers;
     private MessageReader reader;
     private MessageWriter writer;
@@ -21,9 +22,10 @@ public class MessageBroker {
     public MessageBroker(Reactor reactor, SocketChannel channel) {
         this.reactor = reactor;
         this.channel = channel;
-        this.outgoing = new LinkedList<Message>();
-        this.receivers = new HashMap<Short, Receiver<Message>>();
         
+        outgoing = new LinkedList<Message>();
+        sources = new LinkedList<MessageSource>();
+        receivers = new HashMap<Short, Receiver<Message>>();
         reader = new MessageReader();
         writer = new MessageWriter();
     }
@@ -52,6 +54,18 @@ public class MessageBroker {
         return this;
     }
     
+    public MessageBroker send(MessageSource source) {
+        synchronized (outgoing) {
+            sources.offer(source);
+            reactor.listen(channel, Operation.WRITE, writer);
+        }
+        return this;
+    }
+    
+    public void cancel() {
+        reactor.cancel(channel);
+    }
+    
     private class MessageReader implements Listener {
         private ByteBuffer headerBuffer;
         private ByteBuffer overallBuffer;
@@ -59,6 +73,7 @@ public class MessageBroker {
         public MessageReader() {
             headerBuffer = ByteBuffer.allocate(Message.HEADER_LENGTH);
             overallBuffer = null;
+            reactor.listen(channel, Operation.READ, this);
         }
         
         public void ready(SelectableChannel channel) throws IOException {
@@ -106,15 +121,19 @@ public class MessageBroker {
     
     private class MessageWriter implements Listener {
         private ByteBuffer buffer;
+        private MessageSource source;
         
         public MessageWriter() {
             buffer = null;
+            source = null;
         }
         
         public void ready(SelectableChannel channel) throws IOException {
             if (buffer == null) {
                 synchronized (outgoing) {
                     Message nextMessage = outgoing.poll();
+                    if (nextMessage == null)
+                        nextMessage = getFromSource();
                     if (nextMessage == null) {
                         reactor.remove(channel, Operation.WRITE);
                         return;
@@ -129,6 +148,26 @@ public class MessageBroker {
             } else {
                 buffer = null;
             }
+        }
+        
+        private Message getFromSource() {
+            Message message = null;
+            
+            while (message == null) {
+                if (source == null) {
+                    source = sources.poll();
+                }
+
+                if (source != null) {
+                    message = source.next();
+                    if (message == null)
+                        source = null;
+                } else {
+                    break;
+                }
+            }
+            
+            return message;
         }
     }
 }
