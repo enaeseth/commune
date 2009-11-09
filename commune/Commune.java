@@ -143,13 +143,14 @@ public class Commune {
         } else {
             System.out.printf("%d connection(s) are open:%n",
                 connections.size());
+            long now = System.currentTimeMillis();
             for (Connection connection : connections) {
                 System.out.printf("  %s", connection.describeAddress());
                 String agent = connection.getPeer().getUserAgent();
                 if (agent != null)
-                    System.out.printf(", using %s%n", agent);
-                else
-                    System.out.println();
+                    System.out.printf(", using %s", agent);
+                System.out.printf(", %d seconds%n",
+                    (now - connection.getLastContact()) / 1000);
             }
         }
     }
@@ -198,7 +199,7 @@ public class Commune {
         int count = peers.size();
         
         if (count <= 0) {
-            System.out.println("No peers are known.");
+            System.out.println("No peers have been discovered.");
         } else {
             System.out.printf("%d peer(s) have been discovered:%n", count);
             long now = System.currentTimeMillis();

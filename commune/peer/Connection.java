@@ -140,6 +140,14 @@ public class Connection {
         listener.peerResponded(peer);
     }
     
+    /**
+     * Returns the timestamp at which the last message was received.
+     * @return timestamp at which the last message was received
+     */
+    public long getLastContact() {
+        return lastContact;
+    }
+    
     private Request createRequest(String path) {
         FutureTask<File> task = new FutureTask<File>();
         Request request;
