@@ -74,23 +74,26 @@ public class Reactor implements Runnable {
             }
             
             Iterator<SelectionKey> keys = selector.selectedKeys().iterator();
-            
-            while (keys.hasNext()) {
-                SelectionKey key = keys.next();
-                keys.remove();
+            try {
+                while (keys.hasNext()) {
+                    SelectionKey key = keys.next();
+                    keys.remove();
                 
-                State state = (State) key.attachment();
-                try {
-                    state.dispatch(key.readyOps());
-                } catch (IOException e) {
-                    if (isNotable(e))
-                        System.err.println(e);
-                    closed(key);
-                    cancel(key.channel());
+                    State state = (State) key.attachment();
                     try {
-                        key.channel().close();
-                    } catch (IOException ignored) { /* ignore */ }
+                        state.dispatch(key.readyOps());
+                    } catch (IOException e) {
+                        if (isNotable(e))
+                            System.err.println(e);
+                        closed(key);
+                        cancel(key.channel());
+                        try {
+                            key.channel().close();
+                        } catch (IOException ignored) { /* ignore */ }
+                    }
                 }
+            } catch (ConcurrentModificationException e) {
+                // somebody stepped on our toes. let's just go through again!
             }
         }
     }
