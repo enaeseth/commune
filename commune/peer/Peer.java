@@ -200,9 +200,10 @@ public class Peer implements Comparable<Peer> {
     
     public String toString() {
         StringBuilder builder = new StringBuilder();
-        builder.append(String.format("<%s:%d", hostname, port));
+        builder.append("<");
         if (id != 0)
-            builder.append(String.format("; 0x%016X", id));
+            builder.append(String.format("%016x; ", id));
+        builder.append(String.format("%s:%d", hostname, port));
         if (userAgent != null)
             builder.append(String.format("; %s", userAgent));
         builder.append(">");
