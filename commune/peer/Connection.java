@@ -369,10 +369,11 @@ public class Connection {
         }
         
         public void send() throws IOException {
-            System.err.printf("requesting %s from %s%n", path,
-                describeAddress());
+            System.err.printf("requesting %s from %s%s%n", path,
+                describeAddress(),
+                (hypothetical ? " (hypothetically)" : ""));
             
-            broker.send(new RequestMessage(id, path));
+            broker.send(new RequestMessage(id, path, hypothetical));
         }
         
         public void responseReceived(ResponseMessage message)
