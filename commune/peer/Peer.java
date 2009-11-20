@@ -53,6 +53,8 @@ public class Peer implements Comparable<Peer> {
     public static Peer fromAddress(InetAddress address, int port, long id,
         String userAgent)
     {
+        if (address == null)
+            return null;
         String hostname = address.getCanonicalHostName();
         
         return new Peer(id, hostname, port, userAgent);
