@@ -262,8 +262,8 @@ public class Connection {
             AvailableResource resource = source.getResource(message.getPath());
             if (resource != null) {
                 System.out.println("OK.");
-                Response response = new Response(message.getID(),
-                    resource, message.isHypothetical());
+                broker.send(new Response(message.getID(),
+                    resource, message.isHypothetical()));
             } else {
                 System.out.println("not found!");
                 broker.send(new ResponseMessage(message.getID(), (short) 404,
