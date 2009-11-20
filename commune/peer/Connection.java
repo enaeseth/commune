@@ -241,7 +241,8 @@ public class Connection {
                 close();
             }
             
-            System.out.printf("got request for %s from %s: ",
+            System.out.printf("got %s request for %s from %s: ",
+                (message.isHypothetical() ? "hypothetical" : "actual"),
                 message.getPath(), describeAddress());
             gotContact();
             
@@ -249,8 +250,15 @@ public class Connection {
             if (resource != null) {
                 System.out.println("OK.");
                 
-                Response response = new Response(message.getID(), resource);
-                broker.send(response);
+                if (message.isHypothetical()) {
+                    Response response = new Response(message.getID(),
+                        resource);
+                    broker.send(response);
+                } else {
+                    broker.send(new ResponseMessage(message.getID(),
+                        (short) 200, "OK", resource.getSize(),
+                        resource.getContentType()));
+                }
             } else {
                 System.out.println("not found!");
                 broker.send(new ResponseMessage(message.getID(), (short) 404,
