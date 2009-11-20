@@ -10,6 +10,7 @@ import commune.source.*;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
 import java.util.*;
 import java.util.concurrent.Future;
 import java.util.concurrent.ExecutionException;
@@ -20,6 +21,9 @@ public class Commune {
     public static void main(String... args) {
         try {
             new Commune().run(args);
+        } catch (UnknownHostException e) {
+            System.err.printf("error: unknown host: %s%n", e.getMessage());
+            System.exit(1);
         } catch (IOException e) {
             System.err.printf("fatal I/O error: %s%n", e.getMessage());
             System.exit(1);
