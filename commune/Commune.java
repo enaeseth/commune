@@ -4,6 +4,7 @@ import commune.net.Reactor;
 import commune.peer.Connection;
 import commune.peer.Peer;
 import commune.peer.Servent;
+import commune.peer.Resource;
 import commune.source.ResourceManager;
 import commune.source.*;
 
@@ -93,6 +94,8 @@ public class Commune {
                 } else if ("discover".equals(command)) {
                     discoverPeers();
                     pause();
+                } else if (command.startsWith("find ")) {
+                    findFile(command.substring("find ".length()));
                 } else if (command.startsWith("get ")) {
                     String[] parts = command.substring("get ".length()).
                         split(" ");
@@ -131,6 +134,8 @@ public class Commune {
         System.out.println("  connections              List open connections");
         System.out.println("  discover                 Discover new peers");
         System.out.println("  exit                     Quit the program");
+        System.out.println("  find path                Find copies of the " +
+            "file on connected peers");
         System.out.println("  get host[:port] path     Request a file");
         System.out.println("  peers                    Show all known peers");
     }
@@ -165,6 +170,61 @@ public class Commune {
                 connection.exchangePeers(servent.getKnownPeers(connection));
             }
         }
+    }
+    
+    private void findFile(String path) {
+        if (!path.startsWith("/"))
+            path = "/" + path;
+        
+        Map<Peer, Resource> resources = servent.find(path);
+        
+        if (resources.size() == 0) {
+            System.out.printf("File \"%s\" was not found on any peers.%n",
+                path);
+            return;
+        }
+        
+        System.out.printf("Found %d result(s) for file \"%s\".%n",
+            resources.size(), path);
+        for (Map.Entry<Peer, Resource> e : resources.entrySet()) {
+            Peer peer = e.getKey();
+            Resource resource = e.getValue();
+            
+            System.out.printf("  peer %16x (%s:%d):%n", peer.getID(),
+                peer.getHost(), peer.getPort());
+            System.out.printf("    %s, %s", describeSize(resource.getLength()),
+                resource.getContentType());
+            byte[] digest = resource.getDigest();
+            if (digest != null)
+                System.out.printf(", SHA-1 = %s", toHexString(digest));
+            System.out.println();
+        }
+    }
+    
+    private String describeSize(long bytes) {
+        String[] suffixes = new String[] {"B", "KB", "MB", "GB", "PB"};
+        
+        double size = (double) bytes;
+        int i;
+        for (i = 0; i < suffixes.length; i++) {
+            if (size < 1000)
+                break;
+            size /= 1000;
+        }
+        
+        return (i == 0)
+            ? String.format("%d %s", bytes, suffixes[i])
+            : String.format("%.02f %s", size, suffixes[i]);
+    }
+    
+    private String toHexString(byte[] bytes) {
+        StringBuilder builder = new StringBuilder(bytes.length * 2);
+        
+        for (byte b : bytes) {
+            builder.append(String.format("%02x", b));
+        }
+        
+        return builder.toString();
     }
     
     private void requestFile(String host, String path) throws IOException {

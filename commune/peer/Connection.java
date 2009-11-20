@@ -14,12 +14,14 @@ import java.nio.*;
 import java.nio.channels.*;
 import java.util.*;
 import java.util.concurrent.Future;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 
 /**
  * A connection between two Commune peers.
  */
 public class Connection {
-    public static final String USER_AGENT = "Commune Reference/0.4 (PEX)";
+    public static final String USER_AGENT = "Commune Reference/0.5 (PEX)";
     
     private Source source;
     private PeerListener listener;
@@ -69,7 +71,21 @@ public class Connection {
      * Requests the file at the given path from the other peer.
      */
     public Future<File> request(String path) throws IOException {
-        Request request = createRequest(path);
+        Request request = createRequest(path, false);
+        sendRequest(request);
+        return request.getFileTask();
+    }
+    
+    /**
+     * Requests information on the file at the given path from the other peer.
+     */
+    public Future<Resource> describe(String path) throws IOException {
+        Request request = createRequest(path, true);
+        sendRequest(request);
+        return request.getResourceTask();
+    }
+    
+    private void sendRequest(Request request) throws IOException {
         long now = System.currentTimeMillis();
         if (now - lastContact >= 40000L) {
             // Send a "hello" if it's been at least 40 seconds since we last
@@ -80,8 +96,6 @@ public class Connection {
         } else {
             request.send();
         }
-        
-        return request.getTask();
     }
     
     /**
@@ -138,11 +152,11 @@ public class Connection {
     }
     
     void exchangePeers(List<Peer> peers, boolean response) {
-        System.out.printf("exchanging peers with %s", describeAddress());
-        if (response)
-            System.out.println(" (response)");
-        else
-            System.out.println();
+        // System.out.printf("exchanging peers with %s", describeAddress());
+        // if (response)
+        //     System.out.println(" (response)");
+        // else
+        //     System.out.println();
         broker.send(new PeerExchangeMessage(peers, response));
     }
     
@@ -159,8 +173,7 @@ public class Connection {
         return lastContact;
     }
     
-    private Request createRequest(String path) {
-        FutureTask<File> task = new FutureTask<File>();
+    private Request createRequest(String path, boolean hypothetical) {
         Request request;
         
         synchronized (requests) {
@@ -171,16 +184,16 @@ public class Connection {
             }
             
             int id = highestID + 1;
-            request = new Request(id, path, task);
+            request = new Request(id, path, hypothetical);
             requests.put(id, request);
         }
         
         return request;
     }
     
-    private Request getRequest(int id) {
+    private Request getRequest(int id, boolean payload) {
         Request request = requests.get(id);
-        if (request == null) {
+        if (request == null && !payload) {
             System.err.printf("error: got response from %s for " +
                 "unrecognized request ID %d%n", describeAddress(), id);
         }
@@ -249,16 +262,8 @@ public class Connection {
             AvailableResource resource = source.getResource(message.getPath());
             if (resource != null) {
                 System.out.println("OK.");
-                
-                if (message.isHypothetical()) {
-                    Response response = new Response(message.getID(),
-                        resource);
-                    broker.send(response);
-                } else {
-                    broker.send(new ResponseMessage(message.getID(),
-                        (short) 200, "OK", resource.getSize(),
-                        resource.getContentType()));
-                }
+                Response response = new Response(message.getID(),
+                    resource, message.isHypothetical());
             } else {
                 System.out.println("not found!");
                 broker.send(new ResponseMessage(message.getID(), (short) 404,
@@ -271,7 +276,7 @@ public class Connection {
         public void received(ResponseMessage message) throws IOException {
             gotContact();
             
-            Request request = getRequest(message.getID());
+            Request request = getRequest(message.getID(), false);
             if (request != null)
                 request.responseReceived(message);
         }
@@ -281,7 +286,7 @@ public class Connection {
         public void received(PayloadMessage message) throws IOException {
             gotContact();
             
-            Request request = getRequest(message.getRequestID());
+            Request request = getRequest(message.getRequestID(), true);
             if (request != null)
                 request.payloadReceived(message);
         }
@@ -304,17 +309,28 @@ public class Connection {
     
     private class Request {
         private int id;
-        private FutureTask<File> task;
+        private FutureTask<File> fileTask;
+        private FutureTask<Resource> resourceTask;
         private String path;
+        private boolean hypothetical;
         private long fileLength;
         private File outputFile;
         private RandomAccessFile outputAccess;
         private ByteBuffer outputBuffer;
         
-        public Request(int id, String path, FutureTask<File> task) {
+        public Request(int id, String path, boolean hypothetical) {
             this.id = id;
             this.path = path;
-            this.task = task;
+            this.hypothetical = hypothetical;
+            
+            if (!hypothetical) {
+                fileTask = new FutureTask<File>();
+                resourceTask = null;
+            } else {
+                fileTask = null;
+                resourceTask = new FutureTask<Resource>();
+            }
+            
             outputFile = null;
             outputAccess = null;
             outputBuffer = null;
@@ -337,11 +353,19 @@ public class Connection {
         }
         
         /**
-         * Returns the request task.
-         * @return request task
+         * Returns the request's file-yielding future task.
+         * @return request's file-yielding future task
          */
-        public FutureTask<File> getTask() {
-            return task;
+        public FutureTask<File> getFileTask() {
+            return fileTask;
+        }
+        
+        /**
+         * Returns the request's resource-yielding future task.
+         * @return request's resource-yielding future task
+         */
+        public FutureTask<Resource> getResourceTask() {
+            return resourceTask;
         }
         
         public void send() throws IOException {
@@ -358,6 +382,11 @@ public class Connection {
                 System.out.printf("got OK for file %s from %s%n",
                     path, describeAddress());
                 
+                if (hypothetical) {
+                    yieldResource(message);
+                    return;
+                }
+                
                 outputFile = getOutputFile(path);
                 fileLength = message.getFileLength();
                 outputAccess = new RandomAccessFile(outputFile, "rw");
@@ -365,13 +394,24 @@ public class Connection {
                 outputBuffer = channel.map(FileChannel.MapMode.READ_WRITE, 0,
                     fileLength);
             } else {
-                System.err.printf("[client] got %s (%d) for file %s from %s%n",
+                System.err.printf("got %s (%d) for file %s from %s%n",
                     message.getStatusDescription(), message.getStatusCode(),
                     path, describeAddress());
-                task.setError(new IOException(String.format("%s (%d)",
-                    message.getStatusDescription(), message.getStatusCode())));
+                IOException error = new IOException(String.format("%s (%d)",
+                    message.getStatusDescription(), message.getStatusCode()));
+                if (fileTask != null)
+                    fileTask.setError(error);
+                if (resourceTask != null)
+                    resourceTask.setError(error);
                 closeRequest(this);
             }
+        }
+        
+        private void yieldResource(ResponseMessage message) {
+            Resource resource = new Resource(path, message.getFileLength(),
+                message.getContentType(), message.getDigest());
+            resourceTask.set(resource);
+            closeRequest(this);
         }
         
         public void payloadReceived(PayloadMessage message)
@@ -384,7 +424,7 @@ public class Connection {
                 
                 closeRequest(this);
                 outputAccess.close();
-                task.set(outputFile);
+                fileTask.set(outputFile);
             }
         }
         
@@ -403,14 +443,28 @@ public class Connection {
         private ResponseMessage initial;
         private ByteBuffer contents;
         
-        public Response(int id, AvailableResource resource) throws IOException
+        public Response(int id, AvailableResource resource,
+            boolean hypothetical) throws IOException
         {
             this.id = id;
             this.resource = resource;
             
-            initial = new ResponseMessage(id, (short) 200, "OK",
-                resource.getSize(), resource.getContentType());
             contents = resource.read();
+            
+            MessageDigest digest;
+            try {
+                digest = MessageDigest.getInstance("SHA-1");
+                digest.update(contents);
+                contents.rewind();
+            } catch (NoSuchAlgorithmException e) {
+                digest = null;
+            }
+            
+            initial = new ResponseMessage(id, (short) 200, "OK",
+                resource.getSize(), resource.getContentType(),
+                (digest != null ? digest.digest() : null));
+            if (hypothetical)
+                contents = null;
         }
         
         public Message next() {
@@ -421,7 +475,7 @@ public class Connection {
                 return nextMessage;
             }
             
-            if (!contents.hasRemaining())
+            if (contents != null && !contents.hasRemaining())
                 return null;
             
             // Construct a new payload packet with the next chunk of the file.

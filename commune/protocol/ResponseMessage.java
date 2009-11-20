@@ -10,14 +10,15 @@ public class ResponseMessage extends Message {
     private String statusDescription;
     private long fileLength;
     private String contentType;
+    private byte[] digest;
     
     public ResponseMessage(int id, short statusCode, String statusDescription)
     {
-        this(id, statusCode, statusDescription, 0L, "");
+        this(id, statusCode, statusDescription, 0L, "", null);
     }
     
     public ResponseMessage(int id, short statusCode, String statusDescription,
-        long fileLength, String contentType)
+        long fileLength, String contentType, byte[] digest)
     {
         super(CODE);
         this.id = id;
@@ -27,6 +28,7 @@ public class ResponseMessage extends Message {
         this.contentType = contentType;
         if (this.contentType == null)
             this.contentType = "application/octet-stream";
+        this.digest = digest;
     }
     
     /**
@@ -69,9 +71,19 @@ public class ResponseMessage extends Message {
         return contentType;
     }
     
+    /**
+     * Returns the message digest (hash) of the requested file.
+     * @return message digest (hash) of the requested file
+     */
+    public byte[] getDigest() {
+        return digest;
+    }
+    
     public ByteBuffer getBytes() {
         return formatMessage(getID(), getStatusCode(),
-            getStatusDescription(), getFileLength(), getContentType());
+            getStatusDescription(), getFileLength(), getContentType(),
+            (digest != null ? digest.length : 0),
+            ByteBuffer.wrap(getDigest()));
     }
     
     static {
@@ -85,8 +97,17 @@ public class ResponseMessage extends Message {
                 long fileLength = buf.getLong();
                 String contentType = readString(buf);
                 
+                byte[] digest = null;
+                if (buf.position() < buf.limit()) {
+                    int digestLength = buf.getInt();
+                    if (digestLength > 0) {
+                        digest = new byte[digestLength];
+                        buf.get(digest);
+                    }
+                }
+                
                 return new ResponseMessage(clientID, statusCode,
-                    statusDescription, fileLength, contentType);
+                    statusDescription, fileLength, contentType, digest);
             }
         });
     }

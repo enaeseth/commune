@@ -12,6 +12,7 @@ import java.nio.*;
 import java.nio.channels.*;
 import java.util.*;
 import java.util.concurrent.Future;
+import java.util.concurrent.ExecutionException;
 
 /**
  * A servent: a client and server rolled into one.
@@ -201,6 +202,40 @@ public class Servent {
         return connection;
     }
     
+    /**
+     * Asks all connected peers for information on a resource.
+     * Returns a mapping between peers and the resources they returned.
+     * Peers that did not have a copy of the resource or returned an error
+     * are not included in the map.
+     */
+    public Map<Peer, Resource> find(String path) {
+        Queue<Connection> queue = new LinkedList<Connection>();
+        Map<Peer, Resource> found = new HashMap<Peer, Resource>();
+        
+        synchronized (connections) {
+            for (Connection con : connections.values()) {
+                if (con.isConnected())
+                    queue.offer(con);
+            }
+        }
+        
+        Connection con;
+        while ((con = queue.poll()) != null) {
+            try {
+                Resource resource = con.describe(path).get();
+                found.put(con.getPeer(), resource);
+            } catch (IOException e) {
+                // ignore
+            } catch (ExecutionException e) {
+                // ignore
+            } catch (InterruptedException e) {
+                queue.offer(con);
+            }
+        }
+        
+        return found;
+    }
+    
     private class AcceptListener implements Listener {
         public void ready(SelectableChannel channel) throws IOException {
             SocketChannel client = serverChannel.accept();
@@ -248,7 +283,11 @@ public class Servent {
         }
         
         public void peerDisconnected(Peer peer) {
-            System.out.printf("connection to %s closed%n", peer);
+            System.out.print("connection to ");
+            if (peer.getID() != 0)
+                System.out.printf("%016x ", peer.getID());
+            System.out.printf("(%s:%d) closed%n", peer.getHost(),
+                peer.getPort());
             connections.remove(peer);
             knownPeers.remove(peer.getID());
             deadPeers.add(peer.getID());
@@ -343,7 +382,10 @@ public class Servent {
                         updater.peerDisconnected(next.getPeer());
                         continue;
                     } else {
-                        next.exchangePeers(getKnownPeers(next));
+                        if (next.getPeer().exchangesPeers())
+                            next.exchangePeers(getKnownPeers(next));
+                        else
+                            next.sendHello();
                     }
                 } else {
                     // no active connections
@@ -351,7 +393,7 @@ public class Servent {
                 }
                 
                 try {
-                    Thread.sleep((10000 + 1000 * entropy.nextInt(15)) / count);
+                    Thread.sleep((5000 + 1000 * entropy.nextInt(10)) / count);
                 } catch (InterruptedException e) {
                     return;
                 }
