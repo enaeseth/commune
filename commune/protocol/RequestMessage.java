@@ -7,11 +7,17 @@ public class RequestMessage extends Message {
     
     private int id;
     private String path;
+    private boolean hypothetical;
     
     public RequestMessage(int id, String path) {
+        this(id, path, false);
+    }
+    
+    public RequestMessage(int id, String path, boolean hypothetical) {
         super(CODE);
         this.id = id;
         this.path = path;
+        this.hypothetical = hypothetical;
     }
     
     /**
@@ -30,8 +36,16 @@ public class RequestMessage extends Message {
         return path;
     }
     
+    /**
+     * Returns true if this request is hypothetical; false if otherwise.
+     * @return true if this request is hypothetical; false if otherwise
+     */
+    public boolean isHypothetical() {
+        return hypothetical;
+    }
+    
     public ByteBuffer getBytes() {
-        return formatMessage(getID(), getPath());
+        return formatMessage(getID(), getPath(), isHypothetical());
     }
     
     static {
@@ -41,8 +55,14 @@ public class RequestMessage extends Message {
             {
                 int id = buf.getInt();
                 String path = readString(buf);
+                // backwards-compatible, because why not?
+                boolean hasHypotheticalField =
+                    (length > HEADER_LENGTH + 4 + path.length() + 2);
+                boolean hypothetical = (hasHypotheticalField)
+                    ? (buf.get() != (byte) 0)
+                    : false;
                 
-                return new RequestMessage(id, path);
+                return new RequestMessage(id, path, hypothetical);
             }
         });
     }
