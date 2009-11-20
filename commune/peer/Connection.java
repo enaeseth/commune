@@ -476,7 +476,7 @@ public class Connection {
                 return nextMessage;
             }
             
-            if (contents != null && !contents.hasRemaining())
+            if (contents == null || !contents.hasRemaining())
                 return null;
             
             // Construct a new payload packet with the next chunk of the file.
