@@ -196,7 +196,7 @@ public class Commune {
                 resource.getContentType());
             byte[] digest = resource.getDigest();
             if (digest != null)
-                System.out.printf(", SHA-1 = %s", toHexString(digest));
+                System.out.printf(", %s", toHexString(digest));
             System.out.println();
         }
     }
