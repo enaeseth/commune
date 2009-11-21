@@ -122,10 +122,13 @@ public class Connection {
             return null;
         }
         String host = addr.getAddress().getCanonicalHostName();
+        if (host.contains(":"))
+            host = String.format("[%s]", host);
         
-        return (host.contains(":"))
-            ? String.format("[%s]:%d", host, addr.getPort()) // IPv6 literal
-            : String.format("%s:%d", host, addr.getPort()); // everything else
+        int port = addr.getPort();
+        return (port != Servent.DEFAULT_PORT)
+            ? String.format("%s:%d", host, port)
+            : host;
     }
     
     /**
