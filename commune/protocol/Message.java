@@ -75,7 +75,7 @@ public abstract class Message {
     protected void writeHeader(ByteBuffer destination, int length) {
         destination.putInt(length);
         destination.putShort(getType());
-        destination.putShort((short) 0); // no checksum (for now?)
+        destination.putShort((short) 0); // reserved space
     }
     
     protected ByteBuffer formatMessage(Object... parts) {
