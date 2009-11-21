@@ -107,6 +107,9 @@ public class Commune {
                     pause();
                 } else if ("peers".equals(command)) {
                     showKnownPeers();
+                } else if ("whoami".equals(command)) {
+                    System.out.printf("Peer ID: %016x%n",
+                        servent.getLocalID());
                 } else if (command.length() > 0) {
                     System.err.println("Unknown command. " +
                         "Type \"help\" for help.");
@@ -138,6 +141,7 @@ public class Commune {
             "file on connected peers");
         System.out.println("  get host[:port] path     Request a file");
         System.out.println("  peers                    Show all known peers");
+        System.out.println("  whoami                   Show local peer ID");
     }
     
     private void connectTo(String host) throws IOException {
