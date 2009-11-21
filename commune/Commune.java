@@ -100,7 +100,7 @@ public class Commune {
                     String[] parts = command.substring("get ".length()).
                         split(" ");
                     if (parts.length < 2) {
-                        System.err.println("usage: get host[:port] path");
+                        requestFile(parts[0]);
                     } else {
                         requestFile(parts[0], parts[1]);
                     }
@@ -139,7 +139,7 @@ public class Commune {
         System.out.println("  exit                     Quit the program");
         System.out.println("  find path                Find copies of the " +
             "file on connected peers");
-        System.out.println("  get host[:port] path     Request a file");
+        System.out.println("  get [host[:port]] path   Request a file");
         System.out.println("  peers                    Show all known peers");
         System.out.println("  whoami                   Show local peer ID");
     }
@@ -176,12 +176,88 @@ public class Commune {
         }
     }
     
-    private void findFile(String path) {
+    private String cleanPath(String path) {
         if (!path.startsWith("/"))
             path = "/" + path;
+        return path;
+    }
+    
+    private void findFile(String path) {
+        path = cleanPath(path);
+        showSearchResults(path, servent.find(path));
+    }
+    
+    private void requestFile(String path) throws IOException {
+        path = cleanPath(path);
         
         Map<Peer, Resource> resources = servent.find(path);
+        if (resources.size() == 0) {
+            showSearchResults(path, resources);
+            return;
+        }
         
+        Resource blessed = null;
+        for (Resource resource : resources.values()) {
+            if (blessed == null) {
+                blessed = resource;
+            } else if (!blessed.equals(resource)) {
+                // Multiple different resources exist for that name; show a
+                // list of them.
+                showSearchResults(path, resources);
+                return;
+            }
+        }
+        
+        // All the copies of this resource on the network represent the same
+        // file. Download from a random peer.
+        ArrayList<Peer> peers = new ArrayList<Peer>(resources.keySet());
+        Peer chosenOne = peers.get(new Random().nextInt(peers.size()));
+        
+        Connection con = servent.getConnection(chosenOne);
+        if (con != null) {
+            requestFile(con, path);
+        } else {
+            System.err.print("Failed to open connection");
+            if (peers.size() > 1)
+                System.err.print("; please try again");
+            System.err.println(".");
+        }
+    }
+    
+    private void requestFile(String host, String path) throws IOException {
+        path = cleanPath(path);
+        
+        InetSocketAddress address = parseAddress(host);
+        Connection con = servent.getConnection(address);
+        if (con != null) {
+            requestFile(con, path);
+        } else {
+            System.err.println("Failed to open connection.");
+        }
+    }
+    
+    private void requestFile(Connection con, String path) throws IOException {
+        try {
+            // Start the request
+            Future<File> download = con.request(path);
+            // Block waiting for the download to finish
+            File downloadedFile = download.get();
+            // Share the good news
+            System.out.printf("Downloaded //%s%s to %s.%n",
+                con.describeAddress(), path, downloadedFile);
+        } catch (ExecutionException e) {
+            System.err.printf("Failed to download //%s%s%n",
+                con.describeAddress(), path);
+            e.getCause().printStackTrace();
+        } catch (Exception e) {
+            System.err.printf("Failed to download //%s%s%n",
+                con.describeAddress(), path);
+            e.printStackTrace();
+        }
+    }
+    
+    private void showSearchResults(String path, Map<Peer, Resource> resources)
+    {
         if (resources.size() == 0) {
             System.out.printf("File \"%s\" was not found on any peers.%n",
                 path);
@@ -229,35 +305,6 @@ public class Commune {
         }
         
         return builder.toString();
-    }
-    
-    private void requestFile(String host, String path) throws IOException {
-        if (!path.startsWith("/"))
-            path = "/" + path;
-        
-        InetSocketAddress address = parseAddress(host);
-        Connection con = servent.getConnection(address);
-        if (con != null) {
-            try {
-                // Start the request
-                Future<File> download = con.request(path);
-                // Block waiting for the download to finish
-                File downloadedFile = download.get();
-                // Share the good news
-                System.out.printf("Downloaded //%s%s to %s.%n",
-                    host, path, downloadedFile);
-            } catch (ExecutionException e) {
-                System.err.printf("Failed to download //%s%s%n",
-                    host, path);
-                e.getCause().printStackTrace();
-            } catch (Exception e) {
-                System.err.printf("Failed to download //%s%s%n",
-                    host, path);
-                e.printStackTrace();
-            }
-        } else {
-            System.err.println("Failed to open connection.");
-        }
     }
     
     private void showKnownPeers() throws IOException {
