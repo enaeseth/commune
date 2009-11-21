@@ -428,6 +428,17 @@ public class Connection {
         public void payloadReceived(PayloadMessage message)
             throws IOException
         {
+            if (message.getOffset() <= Integer.MAX_VALUE) {
+                int offset = (int) message.getOffset();
+                if (outputBuffer.position() != offset)
+                    outputBuffer.position(offset);
+            } else {
+                closeRequest(this);
+                outputAccess.close();
+                fileTask.setError(new IOException("File is too large."));
+                return;
+            }
+            
             outputBuffer.put(message.getBody());
             
             if (outputBuffer.position() >= fileLength) {
