@@ -28,6 +28,7 @@ public class Connection {
     private File storageFolder;
     private long localID;
     private int listeningPort;
+    private long expectedID;
     private SocketChannel channel;
     private MessageBroker broker;
     private Peer peer;
@@ -38,7 +39,7 @@ public class Connection {
     
     public Connection(Reactor reactor, SocketChannel channel, Source source,
         PeerListener listener, File storageFolder, long localID,
-        int listeningPort) throws IOException
+        int listeningPort, long expectedID) throws IOException
     {
         this.channel = channel;
         this.source = source;
@@ -46,6 +47,7 @@ public class Connection {
         this.storageFolder = storageFolder;
         this.localID = localID;
         this.listeningPort = listeningPort;
+        this.expectedID = expectedID;
         
         peer = Peer.fromAddress((InetSocketAddress) getRemoteAddress());
         helloReceived = false;
@@ -62,7 +64,7 @@ public class Connection {
      * Sends a hello message to the other peer in this connection.
      */
     public void sendHello() {
-        System.out.printf("sending hello to %s%n", describeAddress());
+        // System.out.printf("sending hello to %016x%n", expectedID);
         broker.send(new HelloMessage(USER_AGENT, localID, listeningPort,
             false));
     }
@@ -216,13 +218,13 @@ public class Connection {
     
     private class HelloReceiver implements Receiver<HelloMessage> {
         public void received(HelloMessage message) throws IOException {
-            System.err.printf("got hello from %s, using %s",
-                describeAddress(), message.getUserAgent());
-            if (message.isAcknowledgement()) {
-                System.err.println(" [ack]");
-            } else {
-                System.err.println();
-            }
+            // System.err.printf("got hello from %s, using %s",
+            //     describeAddress(), message.getUserAgent());
+            // if (message.isAcknowledgement()) {
+            //     System.err.println(" [ack]");
+            // } else {
+            //     System.err.println();
+            // }
             
             Request pending;
             while ((pending = pendingRequests.poll()) != null)
@@ -240,6 +242,11 @@ public class Connection {
                     ((InetSocketAddress) getRemoteAddress()).getAddress();
                 peer = Peer.fromAddress(remote, message.getListeningPort(),
                     message.getPeerID(), message.getUserAgent());
+                
+                if (expectedID != 0 && expectedID != peer.getID()) {
+                    listener.unexpectedPeerID(expectedID, peer);
+                }
+                
                 listener.peerConnected(peer, Connection.this,
                     !message.isAcknowledgement());
             }
@@ -369,9 +376,9 @@ public class Connection {
         }
         
         public void send() throws IOException {
-            System.err.printf("requesting %s from %s%s%n", path,
-                describeAddress(),
-                (hypothetical ? " (hypothetically)" : ""));
+            // System.err.printf("requesting %s from %s%s%n", path,
+            //     describeAddress(),
+            //     (hypothetical ? " (hypothetically)" : ""));
             
             broker.send(new RequestMessage(id, path, hypothetical));
         }
@@ -380,8 +387,8 @@ public class Connection {
             throws IOException
         {
             if (message.getStatusCode() == 200) {
-                System.out.printf("got OK for file %s from %s%n",
-                    path, describeAddress());
+                // System.out.printf("got OK for file %s from %s%n",
+                //     path, describeAddress());
                 
                 if (hypothetical) {
                     yieldResource(message);
@@ -395,9 +402,9 @@ public class Connection {
                 outputBuffer = channel.map(FileChannel.MapMode.READ_WRITE, 0,
                     fileLength);
             } else {
-                System.err.printf("got %s (%d) for file %s from %s%n",
-                    message.getStatusDescription(), message.getStatusCode(),
-                    path, describeAddress());
+                // System.err.printf("got %s (%d) for file %s from %s%n",
+                //     message.getStatusDescription(), message.getStatusCode(),
+                //     path, describeAddress());
                 IOException error = new IOException(String.format("%s (%d)",
                     message.getStatusDescription(), message.getStatusCode()));
                 if (fileTask != null)

@@ -27,4 +27,14 @@ public interface PeerListener {
      */
     public void peersDiscovered(List<Peer> peers, Connection connection,
         boolean response);
+    
+    /**
+     * Called when a connection made to a peer reported an ID that was not
+     * expected.
+     * 
+     * This could happen when (e.g.), a peer is discovered through exchange,
+     * but it has restarted (and hence generated a new ID for itself) in
+     * between us hearing about it and us connecting to it.
+     */
+    public void unexpectedPeerID(long expectedID, Peer actual);
 }

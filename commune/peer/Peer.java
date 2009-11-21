@@ -183,6 +183,10 @@ public class Peer implements Comparable<Peer> {
         long otherID = other.getID();
         if (id != 0 && otherID != 0)
             return id == otherID;
+        return sameAddress(other);
+    }
+    
+    public boolean sameAddress(Peer other) {
         return hostname.equals(other.getHost()) && port == other.getPort();
     }
     

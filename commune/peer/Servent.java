@@ -118,7 +118,7 @@ public class Servent {
         List<Peer> unconnected = new LinkedList<Peer>();
         
         for (Peer peer : getKnownPeers()) {
-            if (!connections.containsKey(peer))
+            if (!connections.containsKey(peer) && !deadPeers.contains(peer.getID()))
                 unconnected.add(peer);
         }
         return unconnected;
@@ -196,7 +196,7 @@ public class Servent {
         channel.connect(peer.getAddress());
         channel.configureBlocking(false);
         connection = new Connection(reactor, channel, source, updater,
-            storageFolder, localID, localAddress.getPort());
+            storageFolder, localID, localAddress.getPort(), peer.getID());
         connections.put(peer, connection);
         connection.sendHello();
         return connection;
@@ -242,16 +242,43 @@ public class Servent {
             client.configureBlocking(false);
             
             Connection con = new Connection(reactor, client, source,
-                updater, storageFolder, localID, localAddress.getPort());
-            System.out.printf("got new connection from %s%n",
-                con.describeAddress());
+                updater, storageFolder, localID, localAddress.getPort(), 0L);
+            // System.out.printf("got new connection from %s%n",
+            //     con.describeAddress());
         }
     }
     
+    public Peer getEquivalentPeer(Peer peer) {
+        long id = peer.getID();
+        if (id != 0) {
+            Peer equiv = knownPeers.get(id);
+            if (equiv != null)
+                return equiv;
+        }
+        
+        synchronized (knownPeers) {
+            for (Peer possible : knownPeers.values()) {
+                if (possible.sameAddress(peer))
+                    return possible;
+            }
+        }
+        
+        return null;
+    }
+    
     private class PeerUpdater implements PeerListener {
+        public void unexpectedPeerID(long expectedID, Peer actual) {
+            synchronized (knownPeers) {
+                knownPeers.remove(expectedID);
+                deadPeers.add(expectedID);
+            }
+        }
+        
         public void peerConnected(Peer peer, Connection connection,
             boolean isServer)
         {
+            boolean connectedToSelf = (peer.getID() == localID);
+            
             synchronized (connections) {
                 InetSocketAddress remote =
                     (InetSocketAddress) connection.getRemoteAddress();
@@ -259,11 +286,9 @@ public class Servent {
                     Peer existingPeer = e.getKey();
                     Connection existingCon = e.getValue();
                     if (existingCon == connection) {
-                        if (existingPeer.getID() != peer.getID()) {
-                            connections.remove(existingPeer);
-                        } else {
-                            continue;
-                        }
+                        if (connectedToSelf)
+                            knownPeers.remove(existingPeer.getID());
+                        connections.remove(existingPeer);
                     } else if (remote.equals(existingCon.getRemoteAddress())) {
                         System.err.printf("duplicate connection to %s%n",
                             connection.describeAddress());
@@ -272,6 +297,12 @@ public class Servent {
                     }
                 }
                 
+                if (connectedToSelf && !isServer) {
+                    // oops, we just connected to ourselves
+                    knownPeers.remove(peer.getID());
+                    connection.close();
+                    return;
+                }
                 connections.put(peer, connection);
             }
             
@@ -312,9 +343,25 @@ public class Servent {
                     continue;
                 }
                 
-                if (knownPeers.get(peer.getID()) == null) {
-                    System.out.printf("discovered peer %s%n", peer);
+                Peer existing = getEquivalentPeer(peer);
+                if (existing == null && peer.getID() != localID) {
+                    System.out.printf("discovered peer %016x (%s:%d)%n",
+                        peer.getID(), peer.getHost(), peer.getPort());
                     knownPeers.put(peer.getID(), peer);
+                } else if (existing.getID() != peer.getID()) {
+                    synchronized (connections) {
+                        Connection existingCon = connections.get(existing);
+                        if (existingCon == null) {
+                            System.out.printf("peer at %s:%d; " +
+                                "%016x => %016x%n", peer.getHost(),
+                                peer.getPort(), existing.getID(),
+                                peer.getID());
+                            knownPeers.remove(existing.getID());
+                            if (peer.getID() != localID)
+                                knownPeers.put(peer.getID(), peer);
+                            deadPeers.add(existing.getID());
+                        }
+                    }
                 }
             }
             
