@@ -89,6 +89,9 @@ public class Commune {
                 } else if (command.startsWith("connect ")) {
                     connectTo(command.substring("connect ".length()));
                     pause();
+                } else if (command.startsWith("disconnect ")) {
+                    connectTo(command.substring("disconnect ".length()));
+                    pause();
                 } else if ("connections".equals(command)) {
                     showConnections();
                 } else if ("discover".equals(command)) {
@@ -134,6 +137,7 @@ public class Commune {
     private static void showHelp() {
         System.out.println("Available commands:");
         System.out.println("  connect host[:port]      Open a new connection");
+        System.out.println("  disconnect host[:port]   Closes a connection");
         System.out.println("  connections              List open connections");
         System.out.println("  discover                 Discover new peers");
         System.out.println("  exit                     Quit the program");
@@ -161,9 +165,25 @@ public class Commune {
                 System.out.printf("  %s", connection.describeAddress());
                 String agent = connection.getPeer().getUserAgent();
                 if (agent != null)
-                    System.out.printf(", using %s", agent);
-                System.out.printf(", %d seconds%n",
+                    System.out.printf("; %s", agent);
+                System.out.printf("; %d seconds%n",
                     (now - connection.getLastContact()) / 1000);
+            }
+        }
+    }
+    
+    private void closeConnection(String selector) throws IOException {
+        List<Connection> connections = servent.getConnections();
+        selector = selector.toLowerCase();
+        
+        for (Connection connection : connections) {
+            if (!connection.isConnected())
+                continue;
+            
+            String address = connection.describeAddress().toLowerCase();
+            String id = String.format("%016x", connection.getPeer().getID());
+            if (address.startsWith(selector) || id.startsWith(selector)) {
+                connection.close();
             }
         }
     }
