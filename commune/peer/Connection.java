@@ -490,11 +490,12 @@ public class Connection {
                 return null;
             
             // Construct a new payload packet with the next chunk of the file.
-            int remaining = contents.limit() - contents.position();
+            int offset = contents.position();
+            int remaining = contents.limit() - offset;
             byte[] dest = new byte[Math.min(remaining, CHUNK_SIZE)];
             contents.get(dest);
             
-            return new PayloadMessage(id, contents.position(), dest);
+            return new PayloadMessage(id, offset, dest);
         }
     }
 }
