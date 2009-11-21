@@ -31,7 +31,7 @@ public class Servent {
     private PeerListener updater;
     private Random entropy;
     
-    public static final int DEFAULT_PORT = 2666;
+    public static final int DEFAULT_PORT = 2375;
     
     public Servent(Reactor reactor, Source source, File storageFolder,
         int connectionLimit)

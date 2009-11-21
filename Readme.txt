@@ -6,7 +6,7 @@ To run the servent, first compile it by running "make". The servent now takes a
 few command-line options: -p sets the listening port, and -l sets the soft
 limit on the number of connections the servent can have open. After that,
 specify any peers you want to connect to as host:port. (If no port is given,
-the default listening port of 2666 will be assumed).
+the default listening port of 2375 will be assumed).
 By default, the connection limit is 3, which just seemed like a good number:
 not too many connections, but not so few as to risk being disconnected from all
 peers when some go down.
