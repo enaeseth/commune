@@ -83,7 +83,7 @@ public class ResponseMessage extends Message {
         return formatMessage(getID(), getStatusCode(),
             getStatusDescription(), getFileLength(), getContentType(),
             (digest != null ? digest.length : 0),
-            ByteBuffer.wrap(getDigest()));
+            ByteBuffer.wrap(digest != null ? digest : new byte[0]));
     }
     
     static {
