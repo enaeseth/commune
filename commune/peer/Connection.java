@@ -324,6 +324,7 @@ public class Connection {
         private String path;
         private boolean hypothetical;
         private long fileLength;
+        private long bytesReceived;
         private File outputFile;
         private RandomAccessFile outputAccess;
         private ByteBuffer outputBuffer;
@@ -341,6 +342,7 @@ public class Connection {
                 resourceTask = new FutureTask<Resource>();
             }
             
+            bytesReceived = 0L;
             outputFile = null;
             outputAccess = null;
             outputBuffer = null;
@@ -439,9 +441,11 @@ public class Connection {
                 return;
             }
             
-            outputBuffer.put(message.getBody());
+            ByteBuffer body = message.getBody();
+            outputBuffer.put(body);
+            bytesReceived += body.limit();
             
-            if (outputBuffer.position() >= fileLength) {
+            if (bytesReceived >= fileLength) {
                 System.out.printf("done receiving file %s%n", path);
                 
                 closeRequest(this);
