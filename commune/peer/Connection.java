@@ -271,9 +271,16 @@ public class Connection {
             
             AvailableResource resource = source.getResource(message.getPath());
             if (resource != null) {
-                System.out.println("OK.");
-                broker.send(new Response(message.getID(),
-                    resource, message.isHypothetical()));
+                if (resource.getSize() > Integer.MAX_VALUE) {
+                    // The reference implementation has no large file support.
+                    System.out.println("too large.");
+                    broker.send(new ResponseMessage(message.getID(),
+                        (short) 430, "Resource Too Large"));
+                } else {
+                    System.out.println("OK.");
+                    broker.send(new Response(message.getID(),
+                        resource, message.isHypothetical()));
+                }
             } else {
                 System.out.println("not found!");
                 broker.send(new ResponseMessage(message.getID(), (short) 404,
