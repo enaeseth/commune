@@ -239,6 +239,8 @@ public class Connection {
                     listeningPort, true));
             }
             if (!helloReceived) {
+                System.err.printf("got initial hello from %s%n",
+                    describeAddress());
                 helloReceived = true;
                 
                 InetAddress remote =
@@ -399,8 +401,8 @@ public class Connection {
             throws IOException
         {
             if (message.getStatusCode() == 200) {
-                // System.out.printf("got OK for file %s from %s%n",
-                //     path, describeAddress());
+                System.out.printf("got OK for file %s from %s%n",
+                    path, describeAddress());
                 
                 if (hypothetical) {
                     yieldResource(message);
@@ -414,9 +416,9 @@ public class Connection {
                 outputBuffer = channel.map(FileChannel.MapMode.READ_WRITE, 0,
                     fileLength);
             } else {
-                // System.err.printf("got %s (%d) for file %s from %s%n",
-                //     message.getStatusDescription(), message.getStatusCode(),
-                //     path, describeAddress());
+                System.err.printf("got %s (%d) for file %s from %s%n",
+                    message.getStatusDescription(), message.getStatusCode(),
+                    path, describeAddress());
                 IOException error = new IOException(String.format("%s (%d)",
                     message.getStatusDescription(), message.getStatusCode()));
                 if (fileTask != null)
@@ -448,9 +450,9 @@ public class Connection {
                 return;
             }
             
-            ByteBuffer body = message.getBody();
+            byte[] body = message.getBody();
             outputBuffer.put(body);
-            bytesReceived += body.limit();
+            bytesReceived += body.length;;
             
             if (bytesReceived >= fileLength) {
                 System.out.printf("done receiving file %s%n", path);
