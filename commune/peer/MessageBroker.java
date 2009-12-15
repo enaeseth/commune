@@ -10,6 +10,18 @@ import commune.net.*;
 import commune.protocol.Message;
 import commune.protocol.InvalidMessageException;
 
+/**
+ * A higher-level interface for receiving and sending Commune messages over
+ * a {@link commune.net.Reactor Reactor}-managed socket channel.
+ *
+ * Users can call the {@link receive} method to instruct the broker to call
+ * a method on a class when a message of a particular type is receieved.
+ * 
+ * The broker also implements a buffer for outgoing messages. Individual
+ * messages can be sent using the {@link send(Message)} method, or a class
+ * can implement the {@link MessageSource} interface to send a sequence of
+ * messages.
+ */
 public class MessageBroker {
     private Reactor reactor;
     private SocketChannel channel;

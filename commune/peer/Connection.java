@@ -18,7 +18,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
 /**
- * A connection between two Commune peers.
+ * A connection to another Commune peer.
  */
 public class Connection {
     public static final String USER_AGENT = "Commune Reference/0.5 (PEX)";
@@ -152,6 +152,10 @@ public class Connection {
         }
     }
     
+    /**
+     * Begins a peer exchange with the peer on the other end of this
+     * connection.
+     */
     public void exchangePeers(List<Peer> peers) {
         exchangePeers(peers, false);
     }
@@ -326,6 +330,9 @@ public class Connection {
         return new File(storageFolder, parts[parts.length - 1]);
     }
     
+    /**
+     * Represents an outstanding request made of the other peer.
+     */
     private class Request {
         private int id;
         private FutureTask<File> fileTask;
@@ -469,6 +476,9 @@ public class Connection {
         }
     }
     
+    /**
+     * Represents a response made to a request by the other peer.
+     */
     private class Response implements MessageSource {
         private static final int CHUNK_SIZE = (1024 * 512) -
             Message.HEADER_LENGTH - PayloadMessage.OVERHEAD;

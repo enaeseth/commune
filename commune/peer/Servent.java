@@ -16,6 +16,10 @@ import java.util.concurrent.ExecutionException;
 
 /**
  * A servent: a client and server rolled into one.
+ * 
+ * A Servent object manages all connections to other peers, manages the
+ * server socket that listens for new peer connections, and tracks known and
+ * known-dead peers.
  */
 public class Servent {
     private long localID;
@@ -33,6 +37,24 @@ public class Servent {
     
     public static final int DEFAULT_PORT = 2375;
     
+    /**
+     * Creates a new servent.
+     *
+     * The servent will not immediately begin listening for connections;
+     * use {@link listen} to begin listening on a port.
+     * 
+     * @param reactor the reactor to use to manage sockets
+     * @param source the source that provides the resources available on this
+     *        servent
+     * @param storageFolder the folder to which resources downloaded from
+     *        other peers will be saved
+     * @param connectionLimit the soft limit on the number of connections to
+     *        maintain. This limit only affects automatic connections to peers
+     *        that have been learned about through peer discovery. Incoming
+     *        connections will never be rejected for exceeding this limit,
+     *        and manual requests for a connection will never fail for
+     *        exceeding this limit.
+     */
     public Servent(Reactor reactor, Source source, File storageFolder,
         int connectionLimit)
     {
@@ -82,16 +104,29 @@ public class Servent {
         reactor.listen(serverChannel, Operation.ACCEPT, new AcceptListener());
     }
     
+    /**
+     * Returns a list of all open connections.
+     */
     public List<Connection> getConnections() {
         synchronized (connections) {
             return new ArrayList<Connection>(connections.values());
         }
     }
     
+    /**
+     * Returns a list of all known peers.
+     */
     public List<Peer> getKnownPeers() {
         return getKnownPeers(null);
     }
     
+    /**
+     * Returns a list of all known peers, except the peer that is on the other
+     * end of the given connection.
+     * @param exclude the connection whose remote peer will be excluded from
+     *        the returned list. If this parameter is <code>null</code>, no
+     *        peers will be excluded.
+     */
     public List<Peer> getKnownPeers(Connection exclude) {
         List<Peer> peerList;
         synchronized (knownPeers) {
@@ -114,6 +149,9 @@ public class Servent {
         return peerList;
     }
     
+    /**
+     * Returns a list of peers to which there are currently no connections.
+     */
     public List<Peer> getUnconnectedPeers() {
         List<Peer> unconnected = new LinkedList<Peer>();
         
@@ -132,10 +170,21 @@ public class Servent {
         return connectionLimit;
     }
     
+    /**
+     * Returns the true if the number of open connections is less than the
+     * soft connection limit; false if otherwise.
+     * @return true if the number of open connections is less than the
+     * soft connection limit; false if otherwise
+     */
     public boolean isBelowLimit() {
         return (connections.size() < connectionLimit);
     }
     
+    /**
+     * Opens a connection to any known, unconnected peer.
+     * @return the newly-opened connection. If there are no known peers without
+     *         connections, <code>null</code> will be returned.
+     */
     public Connection openConnection() throws IOException {
         Peer peer = null;
         try {
@@ -167,12 +216,20 @@ public class Servent {
         }
     }
     
+    /**
+     * Gets a connection to the peer at the given host and port, opening it
+     * if necessary.
+     */
     public Connection getConnection(String host, int port) throws IOException {
         InetAddress hostAddress = InetAddress.getByName(host);
         InetSocketAddress address = new InetSocketAddress(hostAddress, port);
         return getConnection(address);
     }
     
+    /**
+     * Gets a connection to the peer at the given socket address, opening it
+     * if necessary.
+     */
     public Connection getConnection(InetSocketAddress address)
         throws IOException
     {
@@ -182,6 +239,9 @@ public class Servent {
         return getConnection(peer);
     }
     
+    /**
+     * Gets a connection to the given peer, opening it if necessary.
+     */
     public Connection getConnection(Peer peer) throws IOException {
         Connection connection = connections.get(peer);
         if (connection != null) {
@@ -207,6 +267,9 @@ public class Servent {
      * Returns a mapping between peers and the resources they returned.
      * Peers that did not have a copy of the resource or returned an error
      * are not included in the map.
+     * 
+     * This method blocks until all connected peers have been queried for
+     * the resource.
      */
     public Map<Peer, Resource> find(String path) {
         Queue<Connection> queue = new LinkedList<Connection>();
@@ -248,6 +311,14 @@ public class Servent {
         }
     }
     
+    /**
+     * Returns a peer from the known-peers list that is "equivalent" to the
+     * given peer.
+     * 
+     * A peer is considered equivalent to the given peer if the given peer
+     * has a non-zero ID and it is equal to another peer's ID, or if the
+     * peer's remote address is the same as another peer's address.
+     */
     public Peer getEquivalentPeer(Peer peer) {
         long id = peer.getID();
         if (id != 0) {
@@ -391,6 +462,11 @@ public class Servent {
         }
     }
     
+    /**
+     * Periodically checks peer connections by sending a peer exchange
+     * message if the remote peer supports PEX or a hello message if it does
+     * not.
+     */
     private class KeepAliveThread extends Thread {
         private Queue<Connection> queue;
         private int count;
@@ -446,14 +522,5 @@ public class Servent {
                 }
             }
         }
-    }
-    
-    public static void main(String... args) throws IOException {
-        Reactor reactor = new Reactor();
-        Servent servent = new Servent(reactor,
-            new DirectorySource("/", new File("Content")),
-            new File("Downloads"), 3);
-        servent.listen(DEFAULT_PORT);
-        reactor.run();
     }
 }
